@@ -66,7 +66,9 @@ const loginUser = asyncHandler(async(req,res)=> {
     //check whether password is correct or not
     //create tokens for login
     //send cookie
+    
     const {email,username,password} = req.body;
+    console.log(req.body);
     if(!username && !email){
         throw new ApiError(400,"Username or email is required");
     }
@@ -104,5 +106,32 @@ const loginUser = asyncHandler(async(req,res)=> {
     );
 })
 
+const logoutUser = asyncHandler(async(req,res) => {
+    await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $unset : {
+                refreshToken : 1
+            }
+        },
+        {
+            new : true
+        }
+    );
+    const options = {
+        httpOnly : true,
+        secure : false,
+    }
 
-export {registerUser,loginUser};
+    return res
+    .status(200)
+    .clearCookie("accessToken",options)
+    .clearCookie("refreshToken",options)
+    .json(
+        new APiResponse(200,{},"User logged out")
+    );
+
+})
+
+
+export {registerUser,loginUser, logoutUser};
