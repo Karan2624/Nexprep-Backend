@@ -25,7 +25,7 @@ const userSchema = new Schema({
         required :[ true,"Password is required"],
     
     },
-    avatarUrl : {
+    avatar : {
         type : String,
     },
     leetcodeProfileId : {

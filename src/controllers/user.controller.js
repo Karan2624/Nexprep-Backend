@@ -31,7 +31,7 @@ const registerUser = asyncHandler( async(req,res) => {
     const user = await User.create({
         name,
         username : username.toLowerCase(),
-        avatarUrl : avatar?.url || "",
+        avatar : avatar?.url || "",
         email,
         password,
 
@@ -169,5 +169,32 @@ const refreshAccessToken = asyncHandler(async(req,res) => {
     }
 })
 
+const updateUserAvatar = asyncHandler(async(req,res) => {
+    const localAvatarPath = req.file?.path;
+    console.log(req.file?.path);
+    if(!localAvatarPath){
+        throw new ApiError(400,"Avatar fils is missing");
+    }
+    const avatar = await uploadOnCloudinary(localAvatarPath);
+    if(!avatar){
+        throw new ApiError(400,"Error while uploading file on cloudinary");
+    }
+    const user = await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set : {
+                avatar : avatar.url
+            }
+        },{
+            new : true
+        }
+    ).select("-password");
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200,user,"Avatar file is updated")
+    );
+})
 
-export {registerUser,loginUser, logoutUser,refreshAccessToken};
+
+export {registerUser,loginUser, logoutUser,refreshAccessToken,updateUserAvatar};
