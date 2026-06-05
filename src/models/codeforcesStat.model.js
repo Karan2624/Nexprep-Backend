@@ -14,21 +14,34 @@ const codeforcesStat = new Schema({
         lowercase : true
     },
     rating : {
-        type  : Number
+        type  : Number,
+        default: 0
     },
     maxRating : {
-        type : Number
+        type : Number,
+        default: 0
+    },
+    rank : {
+        type : String,
+        default: "unrated"
+    },
+    maxRank : {
+        type : String,
+        default: "unrated"
     },
     totalQuestionSolved : {
-        type : Number
+        type : Number,
+        default : 0
     },
     solvedByProblemRating : {
         type : Map,
-        of : Number
+        of : Number,
+        default: {}
     },
     topicBreakdown : {
         type : Map,
-        of : Number
+        of : Number,
+        default: {}
     },
     contestHistory : [
         {
@@ -52,7 +65,11 @@ const codeforcesStat = new Schema({
             }
 
         }
-    ]
+    ],
+    lastSyncedAt : {
+        type  : Date,
+        default : Date.now
+    }
 
 },{timestamps : true});
 
