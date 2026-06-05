@@ -142,7 +142,7 @@ const syncCodeforcesStat = asyncHandler(async(req,res) => {
         stat.totalQuestionSolved = metrics.totalQuestionSolved;
         stat.solvedByProblemRating = metrics.solvedByProblemRating;
         stat.topicBreakdown = metrics.topicBreakdown;
-        stat.contestHistory = metrics.contestHistory;
+        stat.contestHistory = contestHistory;
         stat.lastSyncedAt = Date.now();
         await stat.save();
 
