@@ -12,9 +12,11 @@ app.use(express.urlencoded({extended:true,limit : "1mb"}))
 app.use(express.static("public"))
 app.use(cookieParser());
 
-import userRouter from "./routes/user.router.js"
-import CodeforcesStatRouter from "./routes/codeforceStat.router.js";
+import userRouter from "./routes/user.router.js";
+import codeforcesStatRouter from "./routes/codeforceStat.router.js";
+import companyRouter from "./routes/company.router.js";
 app.use("/api/v1/users",userRouter);
-app.use("/api/v1/codeforcesStat",CodeforcesStatRouter);
+app.use("/api/v1/codeforcesStat",codeforcesStatRouter);
+app.use("/api/v1/company",companyRouter)
 
 export {app}
