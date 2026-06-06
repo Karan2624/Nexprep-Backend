@@ -16,7 +16,13 @@ const fetchLeetcodeProfile = async (username) => {
 
     return data;
 };
+const fetchLeetcodeSkill = async (username) => {
+    const response = await fetch(
+        `https://alfa-leetcode-api.onrender.com/${username}/skill`
+    );
 
+    return await response.json();
+};
 const fetchLeetcodeSolved = async (username) => {
     const response = await fetch(
         `https://alfa-leetcode-api.onrender.com/${username}/solved`
@@ -32,6 +38,26 @@ const fetchLeetcodeContest = async (username) => {
 
     return await response.json();
 };
+const getTopicBreakdown = (skill) => {
+    const topicMap = new Map();
+
+    const allTopics = [
+        ...(skill.fundamental || []),
+        ...(skill.intermediate || []),
+        ...(skill.advanced || []),
+    ];
+
+    allTopics.forEach((topic) => {
+        topicMap.set(
+            topic.tagName,
+            topic.problemsSolved
+        );
+    });
+
+    return Object.fromEntries(topicMap);
+};
+
+
 
 const linkLeetcodeHandle = asyncHandler(async (req, res) => {
     const { username } = req.body;
@@ -52,29 +78,59 @@ const linkLeetcodeHandle = asyncHandler(async (req, res) => {
     }
 
     try {
-        const [profile, solved, contest] = await Promise.all([
+        const [profile, solved, contest, skill] = await Promise.all([
             fetchLeetcodeProfile(username),
             fetchLeetcodeSolved(username),
             fetchLeetcodeContest(username),
+            fetchLeetcodeSkill(username),
         ]);
+        const topicBreakdown = getTopicBreakdown(skill);
+        const contestParticipation =
+    (contest.contestParticipation || []).map(
+        (item) => ({
+            attended: item.attended,
+            rating: item.rating,
+            ranking: item.ranking,
+            trendDirection:
+                item.trendDirection,
+            problemsSolved:
+                item.problemsSolved,
+            totalProblems:
+                item.totalProblems,
+            finishTimeInSeconds:
+                item.finishTimeInSeconds,
+
+            contestTitle:
+                item.contest?.title,
+
+            contestDate: new Date(
+                item.startTime * 1000
+            ),
+        })
+    );
+        
+        console.log("SKILL DATA:");
+        console.log(JSON.stringify(skill, null, 2));
 
         const newStat = await LeetcodeStat.create({
             userId: req.user?._id,
             username,
-
+        
             totalSolved: solved.solvedProblem || 0,
             easySolved: solved.easySolved || 0,
             mediumSolved: solved.mediumSolved || 0,
             hardSolved: solved.hardSolved || 0,
-
+        
             ranking: profile.ranking || 0,
             reputation: profile.reputation || 0,
-
+        
             contestRating: contest.contestRating || 0,
             contestGlobalRanking:
-                contest.contestGlobalRanking || 0,
-        });
+            contest.contestGlobalRanking || 0,
 
+            topicBreakdown,
+            contestParticipation,
+        });
         return res.status(201).json(
             new ApiResponse(
                 200,
@@ -119,12 +175,31 @@ const syncLeetcodeStat = asyncHandler(async (req, res) => {
     }
 
     try {
-        const [profile, solved, contest] = await Promise.all([
-            fetchLeetcodeProfile(stat.username),
-            fetchLeetcodeSolved(stat.username),
-            fetchLeetcodeContest(stat.username),
-        ]);
+        const [profile, solved, contest, skill] =
+    await Promise.all([
+        fetchLeetcodeProfile(stat.username),
+        fetchLeetcodeSolved(stat.username),
+        fetchLeetcodeContest(stat.username),
+        fetchLeetcodeSkill(stat.username),
+    ]);
 
+const contestParticipation =
+    (contest.contestParticipation || []).map(
+        (item) => ({
+            attended: item.attended,
+            rating: item.rating,
+            ranking: item.ranking,
+            trendDirection: item.trendDirection,
+            problemsSolved: item.problemsSolved,
+            totalProblems: item.totalProblems,
+            finishTimeInSeconds:
+                item.finishTimeInSeconds,
+            contestTitle:
+                item.contest?.title,
+            contestDate:
+                new Date(item.startTime * 1000),
+        })
+    );
         stat.totalSolved = solved.solvedProblem || 0;
         stat.easySolved = solved.easySolved || 0;
         stat.mediumSolved = solved.mediumSolved || 0;
@@ -138,10 +213,15 @@ const syncLeetcodeStat = asyncHandler(async (req, res) => {
 
         stat.contestGlobalRanking =
             contest.contestGlobalRanking || 0;
+            stat.lastSyncedAt = Date.now();
 
-        stat.lastSyncedAt = Date.now();
-
-        await stat.save();
+            stat.topicBreakdown =
+                getTopicBreakdown(skill);
+            
+            stat.contestParticipation =
+                contestParticipation;
+            
+            await stat.save();
 
         return res.status(200).json(
             new ApiResponse(

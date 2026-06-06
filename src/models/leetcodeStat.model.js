@@ -44,6 +44,28 @@ const leetcodeStat = new Schema({
         default : 0
     },
 
+    topicBreakdown : {
+        type : Map,
+        of : Number,
+        default : {}
+    },
+
+    contestParticipation: [
+        {
+            attended: Boolean,
+            rating: Number,
+            ranking: Number,
+            trendDirection: String,
+            problemsSolved: Number,
+            totalProblems: Number,
+            finishTimeInSeconds: Number,
+
+            contestTitle: String,
+
+            contestDate: Date
+        }
+    ],
+
     lastSyncedAt : {
         type : Date,
         default : Date.now
