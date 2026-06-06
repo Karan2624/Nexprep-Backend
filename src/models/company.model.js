@@ -8,12 +8,26 @@ const companySchema = new Schema({
     normalizedName : {
         type : String,
         unique : true,
-        required : true
+
+        lowercase : true
     },
     logo : {
-        type : String
+        type : String,
+        default : null
+    },
+    createdBy : {
+        type : Schema.Types.ObjectId,
+        ref : "User",
     }
 
 },{timestamps : true});
+
+companySchema.pre("save", function(next){
+    if(!this.name){
+        return next();
+    }
+    this.normalizedName = this.name.trim().toLowerCase();
+
+})
 
 export const Company  = mongoose.model("Company",companySchema);
