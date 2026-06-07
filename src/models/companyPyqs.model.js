@@ -11,6 +11,7 @@ const companyPyqSchema = new Schema({
     },
     title : {
         type : String,
+        unique : true,
         required : true
     },
     description : {
@@ -23,14 +24,14 @@ const companyPyqSchema = new Schema({
         required : true
     },
     yearAsked : {
-        type : int 
+        type : Number
     },
     tags : [
         {
             type : String,
         }
     ],
-    sampleTest : [
+    sampleTestCase : [
         {
             input : {
                 type : String,
