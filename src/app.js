@@ -21,11 +21,13 @@ import CodeforcesStatRouter from "./routes/codeforceStat.router.js";
 import LeetcodeStatRouter from "./routes/leetcode.routes.js";
 import companyRouter from "./routes/company.router.js";
 import companyPyqRouter from "./routes/companyPyq.router.js";
+import companyReviewRouter from "./routes/companyReview.router.js";
 
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/codeforcesStat", CodeforcesStatRouter);
 app.use("/api/v1/leetcodeStat", LeetcodeStatRouter);
 app.use("/api/v1/company", companyRouter);
 app.use("/api/v1/company-pyq", companyPyqRouter);
+app.use("/api/v1/company-review", companyReviewRouter);
 
 export { app };
