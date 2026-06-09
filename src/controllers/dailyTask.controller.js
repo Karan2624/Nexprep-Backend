@@ -56,4 +56,32 @@ const deleteDailyTask = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, {}, "Daily task deleted successfully"));
 });
 
-export { createDailyTask, deleteDailyTask };
+
+const getDailyTasks = asyncHandler(async (req, res) => {
+    const { date } = req.query; 
+    
+    let query = { userId: req.user._id };
+
+    if (date) {
+        const startOfDay = new Date(date);
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const endOfDay = new Date(date);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        query.targetDate = {
+            $gte: startOfDay,
+            $lte: endOfDay
+        };
+    }
+
+    const tasks = await DailyTask.find(query)
+        .populate("linkedPyqId", "title difficulty")
+        .sort({ createdAt: 1 });
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, tasks, "Daily tasks fetched successfully"));
+});
+
+export { createDailyTask, deleteDailyTask, getDailyTasks };
