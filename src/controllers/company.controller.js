@@ -36,4 +36,29 @@ const createCompany = asyncHandler(async(req,res) => {
     );
 })
 
-export {createCompany};
+const getAllCompanies = asyncHandler(async (req, res) => {
+
+    const companies = await Company.find({})
+        .select("name logo normalizedName")
+        .sort({ name: 1 });
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, companies, "Companies fetched successfully"));
+});
+
+const getCompanyById = asyncHandler(async (req, res) => {
+    const { companyId } = req.params;
+
+    const company = await Company.findById(companyId);
+
+    if (!company) {
+        throw new ApiError(404, "Company not found");
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, company, "Company details fetched successfully"));
+});
+
+export { createCompany, getAllCompanies, getCompanyById };
