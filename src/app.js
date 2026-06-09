@@ -15,10 +15,12 @@ app.use(cookieParser());
 import userRouter from "./routes/user.router.js";
 import codeforcesStatRouter from "./routes/codeforceStat.router.js";
 import companyRouter from "./routes/company.router.js";
-import companyPyqRouter from "./routes/companyPyq.router.js"
+import companyPyqRouter from "./routes/companyPyq.router.js";
+import dailyTaskRouter from "./routes/dailyTask.router.js"
 app.use("/api/v1/users",userRouter);
 app.use("/api/v1/codeforcesStat",codeforcesStatRouter);
 app.use("/api/v1/company",companyRouter)
 app.use("/api/v1/company-pyq",companyPyqRouter);
+app.use("/api/v1/dailyTask",dailyTaskRouter);
 
 export {app}

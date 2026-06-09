@@ -157,4 +157,16 @@ const syncCodeforcesStat = asyncHandler(async(req,res) => {
     );
 })
 
-export {linkCodeforcesHandle,syncCodeforcesStat};
+const getCodeforcesStat = asyncHandler(async (req, res) => {
+    const stat = await CodeforcesStat.findOne({ userId: req.user._id });
+    if (!stat) {
+        return res
+            .status(200)
+            .json(new ApiResponse(200, null, "No Codeforces account linked yet"));
+    }
+    return res
+        .status(200)
+        .json(new ApiResponse(200, stat, "Codeforces stats fetched successfully"));
+});
+
+export { linkCodeforcesHandle, syncCodeforcesStat, getCodeforcesStat };

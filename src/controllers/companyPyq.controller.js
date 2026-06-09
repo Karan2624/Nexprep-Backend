@@ -115,4 +115,35 @@ const updatePyq = asyncHandler(async (req, res) => {
 });
 
 
-export {createCompanyPyq,deletePyq,updatePyq};
+const getPyqsByCompany = asyncHandler(async (req, res) => {
+    const { companyId } = req.params;
+
+    if (!companyId) {
+        throw new ApiError(400, "Company ID is required");
+    }
+
+    const pyqs = await CompanyPyq.find({ companyId })
+        .select("title difficulty yearAsked tags createdAt")
+        .sort({ createdAt: -1 });
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, pyqs, "Company PYQs fetched successfully"));
+});
+
+
+const getPyqById = asyncHandler(async (req, res) => {
+    const { pyqId } = req.params;
+
+    const pyq = await CompanyPyq.findById(pyqId);
+
+    if (!pyq) {
+        throw new ApiError(404, "This PYQ question does not exist");
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, pyq, "PYQ details fetched successfully"));
+});
+
+export { createCompanyPyq, deletePyq, updatePyq, getPyqsByCompany, getPyqById };
