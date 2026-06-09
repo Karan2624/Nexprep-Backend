@@ -8,5 +8,6 @@ router.route("/create-task").post(verifyJWT,createDailyTask);
 router.route("/delete-task/:taskId").post(verifyJWT,deleteDailyTask);
 router.route("/list").get(verifyJWT,getDailyTasks);
 
+
 export default router;
 
