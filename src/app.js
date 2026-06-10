@@ -21,15 +21,16 @@ import CodeforcesStatRouter from "./routes/codeforceStat.router.js";
 import LeetcodeStatRouter from "./routes/leetcode.routes.js";
 import companyRouter from "./routes/company.router.js";
 import companyPyqRouter from "./routes/companyPyq.router.js";
-import dailyTaskRouter from "./routes/dailyTask.router.js";
-import companyReviewRouter from "./routes/companyReview.router.js";
 
-app.use("/api/v1/users", userRouter);
-app.use("/api/v1/codeforcesStat", CodeforcesStatRouter);
-app.use("/api/v1/leetcodeStat", LeetcodeStatRouter);
-app.use("/api/v1/company", companyRouter);
-app.use("/api/v1/company-pyq", companyPyqRouter);
+import companyReviewRouter from "./routes/companyReview.router.js";
+import studyGroupRouter from "./routes/studyGroup.router.js";
+import dailyTaskRouter from "./routes/dailyTask.router.js"
+app.use("/api/v1/users",userRouter);
+app.use("/api/v1/codeforcesStat",codeforcesStatRouter);
+app.use("/api/v1/company",companyRouter)
+app.use("/api/v1/company-pyq",companyPyqRouter);
 app.use("/api/v1/company-review", companyReviewRouter);
 app.use("/api/v1/dailyTask",dailyTaskRouter);
+app.use("/api/v1/study-group",studyGroupRouter);
 
 export { app };
