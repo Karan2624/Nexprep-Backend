@@ -27,7 +27,7 @@ const joinGroup = asyncHandler(async (req, res) => {
     const group = await StudyGroup.findByIdAndUpdate(
         groupId,
         { $addToSet: { members: req.user._id } },
-        { new: true }
+        { returnDocument: "after" }
     );
 
     if (!group) {
@@ -46,7 +46,7 @@ const leaveGroup = asyncHandler(async (req, res) => {
     const group = await StudyGroup.findByIdAndUpdate(
         groupId,
         { $pull: { members: req.user._id } },
-        { new: true }
+        { returnDocument: "after" }
     );
 
     if (!group) {
