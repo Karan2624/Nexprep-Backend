@@ -26,7 +26,7 @@ import companyReviewRouter from "./routes/companyReview.router.js";
 import studyGroupRouter from "./routes/studyGroup.router.js";
 import dailyTaskRouter from "./routes/dailyTask.router.js"
 app.use("/api/v1/users",userRouter);
-app.use("/api/v1/codeforcesStat",codeforcesStatRouter);
+app.use("/api/v1/codeforcesStat",CodeforcesStatRouter);
 app.use("/api/v1/company",companyRouter)
 app.use("/api/v1/company-pyq",companyPyqRouter);
 app.use("/api/v1/company-review", companyReviewRouter);
