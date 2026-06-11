@@ -7,6 +7,10 @@ import { ApiResponse } from "../../utils/ApiResponse.js";
 
 const fetchCodeforcesUserInfo = async(handle) => {
     const response = await fetch(`https://codeforces.com/api/user.info?handles=${handle}`);
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+        throw new ApiError(502, "Codeforces API is currently unavailable or rate-limiting. Please try again later.");
+    }
     const data = await response.json();
     if(data.status!=="OK"){
         throw new ApiError(400,"Codeforces handle not found");
@@ -16,6 +20,10 @@ const fetchCodeforcesUserInfo = async(handle) => {
 
 const fetchCodeforcesContest = async(handle) => {
     const response = await fetch(`https://codeforces.com/api/user.rating?handle=${handle}`);
+    const contentType = response.headers.get("content-type");
+    if(!contentType || !contentType.includes("application/json")){
+        throw new ApiError(502,"Codeforces API is currently unavailable or rate-limiting. Please try again");
+    }
     const data = await response.json();
     if(data.status !== "OK") {
         throw new ApiError(401,"Codeforces handle not found");
@@ -32,6 +40,10 @@ const fetchCodeforcesContest = async(handle) => {
 
 const fetchCodeforcesMetrics = async(handle) => {
     const response = await fetch(`https://codeforces.com/api/user.status?handle=${handle}`);
+        const contentType = response.headers.get("content-type");
+    if(!contentType || !contentType.includes("application/json")){
+        throw new ApiError(502,"Codeforces API is currently unavailable or rate-limiting. Please try again");
+    }
     const data = await response.json();
     const solvedProblems = new Set();
     const solvedByProblemRating = {};
@@ -116,6 +128,7 @@ const linkCodeforcesHandle = asyncHandler(async(req,res) => {
 
 const syncCodeforcesStat = asyncHandler(async(req,res) => {
     const stat = await CodeforcesStat.findOne({userId : req.user?._id});
+    console.log(stat.handle);
     if(!stat) {
         throw new ApiError(404,"No codeforces profile linked, please link it");
     }

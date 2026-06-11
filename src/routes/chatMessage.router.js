@@ -9,6 +9,4 @@ router.route("/:groupId/message").get(verifyJWT,getGroupMessages);
 router.route("/update/:messageId").patch(verifyJWT,updateMessage);
 router.route("/delete/:messageId").delete(verifyJWT,deleteMessage);
 
-
-
 export default router;
