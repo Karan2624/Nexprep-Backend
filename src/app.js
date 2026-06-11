@@ -26,6 +26,10 @@ import companyReviewRouter from "./routes/companyReview.router.js";
 import dailyTaskRouter from "./routes/dailyTask.router.js"
 import studyGroupRouter from "./routes/studyGroup.router.js";
 import chatMessageRouter from "./routes/chatMessage.router.js"
+import communityPostRouter from "./routes/communityPost.router.js";
+
+
+
 app.use("/api/v1/users",userRouter);
 app.use("/api/v1/codeforcesStat",CodeforcesStatRouter);
 app.use("/api/v1/company",companyRouter)
@@ -35,5 +39,7 @@ app.use("/api/v1/dailyTask",dailyTaskRouter);
 app.use("/api/v1/study-group",studyGroupRouter);
 app.use("/api/v1/chat-message",chatMessageRouter);
 app.use("/api/v1/leetcodeStat", LeetcodeStatRouter);
+app.use("/api/v1/community-post",communityPostRouter);
+
 
 export { app };
