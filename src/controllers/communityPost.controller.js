@@ -115,7 +115,7 @@ const deletePost = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, {}, "Post deleted successfully"));
 });
 
-// 6. Toggle Upvote (Like / Unlike)
+
 const toggleUpvote = asyncHandler(async (req, res) => {
     const { postId } = req.params;
     const userId = req.user._id;
@@ -129,10 +129,10 @@ const toggleUpvote = asyncHandler(async (req, res) => {
     const hasUpvoted = post.upvotedBy.includes(userId);
 
     if (hasUpvoted) {
-        // User already upvoted, so we remove their ID (Unlike)
+       
         post.upvotedBy.pull(userId);
     } else {
-        // User hasn't upvoted, so we add their ID (Like)
+    
         post.upvotedBy.push(userId);
     }
 
@@ -143,7 +143,7 @@ const toggleUpvote = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, { upvotes: post.upvotedBy.length }, hasUpvoted ? "Upvote removed" : "Post upvoted"));
 });
 
-// 7. Toggle Resolved Status (Only author)
+
 const toggleResolved = asyncHandler(async (req, res) => {
     const { postId } = req.params;
 
@@ -153,12 +153,12 @@ const toggleResolved = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Post not found");
     }
 
-    // Security: Only the author can mark it resolved
+ 
     if (post.authorId.toString() !== req.user._id.toString()) {
         throw new ApiError(403, "Only the author can mark this post as resolved");
     }
 
-    post.isResolved = !post.isResolved; // Flip the boolean
+    post.isResolved = !post.isResolved; 
     await post.save();
 
     return res
