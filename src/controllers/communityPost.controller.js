@@ -1,6 +1,7 @@
 import { ApiError } from "../../utils/ApiError.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
+import { CommunityComment } from "../models/communityComment.model.js";
 import { CommunityPost } from "../models/communityPost.model.js";
 
 const createPost = asyncHandler(async (req, res) => {
@@ -108,7 +109,7 @@ const deletePost = asyncHandler(async (req, res) => {
 
     await CommunityPost.deleteOne({ _id: post._id });
 
-    // i will also  delete all Comments associated with this postId here later after creating it!
+    await CommunityComment.deleteMany({postId : post._id});
 
     return res
         .status(200)
