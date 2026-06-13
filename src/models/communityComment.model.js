@@ -5,7 +5,7 @@ const communityCommentSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: "CommunityPost",
         required: true,
-        index: true // ⚡ PRO-TIP: Index this so fetching all comments for a post is lightning fast
+        index: true
     },
     authorId: {
         type: Schema.Types.ObjectId,

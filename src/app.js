@@ -27,6 +27,7 @@ import dailyTaskRouter from "./routes/dailyTask.router.js"
 import studyGroupRouter from "./routes/studyGroup.router.js";
 import chatMessageRouter from "./routes/chatMessage.router.js"
 import communityPostRouter from "./routes/communityPost.router.js";
+import communityCommentRouter from "./routes/communityComment.router.js";
 
 
 
@@ -40,6 +41,6 @@ app.use("/api/v1/study-group",studyGroupRouter);
 app.use("/api/v1/chat-message",chatMessageRouter);
 app.use("/api/v1/leetcodeStat", LeetcodeStatRouter);
 app.use("/api/v1/community-post",communityPostRouter);
-
+app.use("/api/v1/community-comment",communityCommentRouter);
 
 export { app };
