@@ -3,6 +3,7 @@ import { ApiResponse } from "../../utils/ApiResponse.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { CommunityComment } from "../models/communityComment.model.js";
 import { CommunityPost } from "../models/communityPost.model.js";
+import { Notification } from "../models/notification.model.js";
 
 const addComment = asyncHandler(async (req, res) => {
     const { postId } = req.params;
@@ -22,10 +23,17 @@ const addComment = asyncHandler(async (req, res) => {
         authorId: req.user._id,
         content: content.trim()
     });
-
+   
     post.replyCount += 1;
     await post.save();
-
+     if (post.authorId.toString() !== req.user._id.toString()) {
+        await Notification.create({
+            userId: post.authorId,
+            type: "reply",
+            message: `${req.user.name} replied to your post: "${post.title}"`,
+            linkUrl: `/community/${post._id}` 
+        });
+    }
     await comment.populate("authorId", "name avatar");
 
     return res
@@ -151,6 +159,14 @@ const acceptComment = asyncHandler(async (req, res) => {
         comment.isAccepted = false;
         await comment.save();
         return res.status(200).json(new ApiResponse(200, { isAccepted: false }, "Answer un-accepted"));
+    }
+    if (comment.authorId.toString() !== req.user._id.toString()) {
+        await Notification.create({
+            userId: comment.authorId,
+            type: "system",
+            message: `Your reply on "${post.title}" was marked as the accepted answer!`,
+            linkUrl: `/community/${post._id}` 
+        });
     }
 
     await CommunityComment.updateMany(

@@ -44,6 +44,10 @@ const dailyTaskSchema = new Schema({
         ref : "CompanyPyq",
         default : null
 
+    },
+    reminderSent: { 
+        type: Boolean,
+        default: false
     }
 },{timestamps : true});
 
