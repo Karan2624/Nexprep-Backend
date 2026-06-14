@@ -43,6 +43,6 @@ app.use("/api/v1/chat-message",chatMessageRouter);
 app.use("/api/v1/leetcodeStat", LeetcodeStatRouter);
 app.use("/api/v1/community-post",communityPostRouter);
 app.use("/api/v1/community-comment",communityCommentRouter);
-app.use("api/v1/notification",notificationRouter);
+app.use("/api/v1/notification",notificationRouter);
 
 export { app };
