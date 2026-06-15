@@ -238,8 +238,26 @@ const contestParticipation =
         );
     }
 });
+const getLeetcodeStat = asyncHandler(async (req, res) => {
+    const stat = await LeetcodeStat.findOne({
+        userId: req.user._id,
+    });
+
+    if (!stat) {
+        throw new ApiError(404, "Leetcode stats not found");
+    }
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            stat,
+            "Leetcode stats fetched successfully"
+        )
+    );
+});
 
 export {
     linkLeetcodeHandle,
     syncLeetcodeStat,
+    getLeetcodeStat,
 };

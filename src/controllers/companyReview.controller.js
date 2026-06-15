@@ -41,5 +41,40 @@ const createCompanyReview = asyncHandler(async (req, res) => {
         )
     );
 });
+const getAllCompanyReviews = asyncHandler(async (req, res) => {
+    const reviews = await CompanyReview.find();
 
-export { createCompanyReview };
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            reviews,
+            "All reviews fetched successfully"
+        )
+    );
+});
+const getCompanyReviewById = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    const review = await CompanyReview.findById(id);
+
+    if (!review) {
+        throw new ApiError(
+            404,
+            "Review not found"
+        );
+    }
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            review,
+            "Review fetched successfully"
+        )
+    );
+});
+
+export {
+    createCompanyReview,
+    getAllCompanyReviews,
+    getCompanyReviewById
+};

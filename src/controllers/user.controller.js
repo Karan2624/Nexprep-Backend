@@ -6,6 +6,9 @@ import { User } from "../models/user.model.js";
 import jwt from "jsonwebtoken";
 
 const registerUser = asyncHandler( async(req,res) => {
+    console.log(req.body);
+    console.log(req.file);
+
     const {name,username,email,password} = req.body;
     if([name,username,email,password].some((field) => !field || field.trim()==="")){
         throw new ApiError(400,"All feild are required");
