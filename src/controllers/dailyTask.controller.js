@@ -84,4 +84,26 @@ const getDailyTasks = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, tasks, "Daily tasks fetched successfully"));
 });
 
-export { createDailyTask, deleteDailyTask, getDailyTasks };
+
+const completeTask = asyncHandler(async(req,res) => {
+    const {taskId }= req.params;
+    const {timeTaken} = req.body;
+    const task = await DailyTask.findById(taskId);
+    if(!task){
+        throw new ApiError(401,"Task doesn't exist");
+    }
+    if(task.userId.toString() !== req.user._id.toString()) {
+        throw new ApiError(402,"You are not the one who created this task");
+    }
+    task.timeSpentMinutes = timeTaken;
+    task.isCompleted = true;
+    await task.save();
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200,{},"Task marked completed successfully")
+    );
+})
+
+
+export { createDailyTask, deleteDailyTask, getDailyTasks,completeTask};
