@@ -2,6 +2,94 @@ import cron from "node-cron";
 
 import { Notification } from "../src/models/notification.model.js";
 import { DailyTask } from "../src/models/dailyTask.model.js";
+import updateHeatmap from "./heatmapUpdater.js";
+import { LeetcodeStat } from "../src/models/leetcodeStat.model.js";
+import { CodeforcesStat } from "../src/models/codeforcesStat.model.js";
+import { User } from "../src/models/user.model.js";
+
+
+
+const delay = (ms) => new Promise((res) => setTimeout(res, ms));
+
+
+const fetchCfUser = async (handle) => {
+    const res = await fetch(`https://codeforces.com/api/user.info?handles=${handle}`);
+    const data = await res.json();
+    if (data.status !== "OK") throw new Error("CF handle not found");
+    return data.result[0];
+};
+
+const fetchCfContest = async (handle) => {
+    const res = await fetch(`https://codeforces.com/api/user.rating?handle=${handle}`);
+    const data = await res.json();
+    if (data.status !== "OK") throw new Error("CF contest fetch failed");
+    return data.result.map((c) => ({
+        contestId: c.contestId,
+        rank: c.rank,
+        contestName: c.contestName,
+        oldRating: c.oldRating,
+        newRating: c.newRating,
+        contestDate: new Date(c.ratingUpdateTimeSeconds * 1000),
+    }));
+};
+
+const fetchCfMetrics = async (handle) => {
+    const res = await fetch(`https://codeforces.com/api/user.status?handle=${handle}`);
+    const data = await res.json();
+    const solved = new Set();
+    const ratings = {};
+    const topics = {};
+
+    if (data.status === "OK") {
+        data.result.forEach((sub) => {
+            if (sub.verdict === "OK") {
+                const pid = `${sub.problem?.contestId}-${sub.problem?.index}`;
+                if (!solved.has(pid)) {
+                    solved.add(pid);
+                    if (sub.problem?.rating) {
+                        const rStr = sub.problem.rating.toString();
+                        ratings[rStr] = (ratings[rStr] || 0) + 1;
+                    }
+                    if (sub.problem?.tags) {
+                        sub.problem.tags.forEach((t) => {
+                            topics[t] = (topics[t] || 0) + 1;
+                        });
+                    }
+                }
+            }
+        });
+    }
+    return { total: solved.size, ratings, topics };
+};
+
+
+const fetchLcProfile = async (user) => {
+    const res = await fetch(`https://alfa-leetcode-api.onrender.com/${user}`);
+    return await res.json();
+};
+
+const fetchLcSolved = async (user) => {
+    const res = await fetch(`https://alfa-leetcode-api.onrender.com/${user}/solved`);
+    return await res.json();
+};
+
+const fetchLcContest = async (user) => {
+    const res = await fetch(`https://alfa-leetcode-api.onrender.com/${user}/contest`);
+    return await res.json();
+};
+
+const fetchLcSkill = async (user) => {
+    const res = await fetch(`https://alfa-leetcode-api.onrender.com/${user}/skill`);
+    return await res.json();
+};
+
+const getLcTopics = (skl) => {
+    const map = new Map();
+    const all = [...(skl.fundamental || []), ...(skl.intermediate || []), ...(skl.advanced || [])];
+    all.forEach((t) => map.set(t.tagName, t.problemsSolved));
+    return Object.fromEntries(map);
+};
+
 
 const startCronJobs = () => {
   
@@ -36,6 +124,133 @@ const startCronJobs = () => {
             console.error("Hourly Cron Error:", err);
         }
     });
+
+    cron.schedule("1 0 * * *", async () => {
+        try {
+            console.log("Running Daily Streak Sweeper...");
+
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayString = yesterday.toISOString().split('T')[0];
+            const usersWithStreaks = await User.find({ currentStreak: { $gt: 0 } });
+
+            let resetCount = 0;
+            for (const user of usersWithStreaks) {
+                if (!user.activityHeatmap.has(yesterdayString)) {
+                    user.currentStreak = 0;
+                    await user.save({ validateBeforeSave: false });
+                    resetCount++;
+                }
+            }
+
+            console.log(`Streak Sweeper finished: Reset ${resetCount} broken streaks.`);
+        } catch (error) {
+            console.error("Error in Midnight Streak Sweeper:", error);
+        }
+    });
+    cron.schedule("0 */4 * * *", async () => {
+        console.log("Background profiles sync process started...");
+        try {
+            const cfStats = await CodeforcesStat.find({});
+            for (const stat of cfStats) {
+                try {
+                    const uid = stat.userId;
+                    const oldSol = stat.totalQuestionSolved || 0;
+
+                    const [uInfo, cHist, met] = await Promise.all([
+                        fetchCfUser(stat.handle),
+                        fetchCfContest(stat.handle),
+                        fetchCfMetrics(stat.handle),
+                    ]);
+
+                    const newSol = met.total || 0;
+                    const diff = newSol - oldSol;
+
+                    stat.rating = uInfo.rating || 0;
+                    stat.maxRating = uInfo.maxRating || 0;
+                    stat.rank = uInfo.rank || "unrated";
+                    stat.maxRank = uInfo.maxRank || "unrated";
+                    stat.totalQuestionSolved = newSol;
+                    stat.solvedByProblemRating = met.ratings;
+                    stat.topicBreakdown = met.topics;
+                    stat.contestHistory = cHist;
+                    stat.lastSyncedAt = Date.now();
+
+                    await stat.save();
+
+                    if (diff > 0 && uid) {
+                        await updateHeatmap(uid, "codeforces", diff);
+                    }
+                    console.log(`Auto-synced Codeforces: ${stat.handle}`);
+                } catch (err) {
+                    console.error(`Error auto-syncing CF for ${stat.handle}:`, err.message);
+                }
+                await delay(5000); 
+            }
+        } catch (err) {
+            console.error("Failed to query Codeforces documents:", err.message);
+        }
+
+        try {
+            const lcStats = await LeetcodeStat.find({});
+            for (const stat of lcStats) {
+                try {
+                    const uid = stat.userId;
+                    const oldSol = stat.totalSolved || 0;
+
+                    const [prof, sol, cont, skl] = await Promise.all([
+                        fetchLcProfile(stat.username),
+                        fetchLcSolved(stat.username),
+                        fetchLcContest(stat.username),
+                        fetchLcSkill(stat.username),
+                    ]);
+
+                    const parts = (cont.contestParticipation || []).map((item) => ({
+                        attended: item.attended,
+                        rating: item.rating,
+                        ranking: item.ranking,
+                        trendDirection: item.trendDirection,
+                        problemsSolved: item.problemsSolved,
+                        totalProblems: item.totalProblems,
+                        finishTimeInSeconds: item.finishTimeInSeconds,
+                        contestTitle: item.contest?.title,
+                        contestDate: new Date(item.startTime * 1000),
+                    }));
+
+                    const newSol = sol.solvedProblem || 0;
+                    const diff = newSol - oldSol;
+
+                    stat.totalSolved = newSol;
+                    stat.easySolved = sol.easySolved || 0;
+                    stat.mediumSolved = sol.mediumSolved || 0;
+                    stat.hardSolved = sol.hardSolved || 0;
+                    stat.ranking = prof.ranking || 0;
+                    stat.reputation = prof.reputation || 0;
+                    stat.contestRating = cont.contestRating || 0;
+                    stat.contestGlobalRanking = cont.contestGlobalRanking || 0;
+                    stat.topicBreakdown = getLcTopics(skl);
+                    stat.contestParticipation = parts;
+                    stat.lastSyncedAt = Date.now();
+
+                    await stat.save();
+
+                    if (diff > 0 && uid) {
+                        await updateHeatmap(uid, "leetcode", diff);
+                    }
+                    console.log(`Auto-synced LeetCode: ${stat.username}`);
+                } catch (err) {
+                    console.error(`Error auto-syncing LC for ${stat.username}:`, err.message);
+                }
+                await delay(5000); 
+            }
+        } catch (err) {
+            console.error("Failed to query LeetCode documents:", err.message);
+        }
+
+        console.log("Background profiles sync process finished complete.");
+    });
 };
+
+
 
 export { startCronJobs };

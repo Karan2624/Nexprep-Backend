@@ -1,6 +1,7 @@
 import { ApiError } from "../../utils/ApiError.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
+import updateHeatmap from "../../utils/heatmapUpdater.js";
 import { DailyTask } from "../models/dailyTask.model.js";
 
 const createDailyTask = asyncHandler(async (req, res) => {
@@ -98,6 +99,7 @@ const completeTask = asyncHandler(async(req,res) => {
     task.timeSpentMinutes = timeTaken;
     task.isCompleted = true;
     await task.save();
+    await updateHeatmap(req.user._id,"task",1);
     return res
     .status(200)
     .json(

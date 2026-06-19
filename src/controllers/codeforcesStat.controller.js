@@ -3,6 +3,7 @@ import { ApiError } from "../../utils/ApiError.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { CodeforcesStat } from "../models/codeforcesStat.model.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
+import updateHeatmap from "../../utils/heatmapUpdater.js";
 
 
 const fetchCodeforcesUserInfo = async(handle) => {
@@ -128,41 +129,52 @@ const linkCodeforcesHandle = asyncHandler(async(req,res) => {
 
 const syncCodeforcesStat = asyncHandler(async(req,res) => {
     const stat = await CodeforcesStat.findOne({userId : req.user?._id});
-    console.log(stat.handle);
+    
     if(!stat) {
         throw new ApiError(404,"No codeforces profile linked, please link it");
     }
 
     const oneHour = 3600000;
     const timeSinceLastSync = Date.now() - stat.lastSyncedAt;
+    
     if (timeSinceLastSync < oneHour) {
         const minutesLeft = Math.ceil((oneHour - timeSinceLastSync) / 60000);
         throw new ApiError(429, `Please wait ${minutesLeft} minutes before syncing again.`);
     }
-        try{
+        
+    try{
+        const oldTotalSolved = stat.totalQuestionSolved || 0;
+
         const [userInfo,contestHistory,metrics] = await Promise.all([
             fetchCodeforcesUserInfo(stat.handle),
             fetchCodeforcesContest(stat.handle),
             fetchCodeforcesMetrics(stat.handle)
         ]);
 
-      
+        const newTotalSolved = metrics.totalQuestionSolved || 0;
+        const newlySolvedCount = newTotalSolved - oldTotalSolved;
+
         stat.userId = req.user?._id;
         stat.rating = userInfo.rating || 0;
         stat.maxRating = userInfo.maxRating || 0;
         stat.rank = userInfo.rank || "unrated";
         stat.maxRank = userInfo.maxRank || "unrated";
-        stat.totalQuestionSolved = metrics.totalQuestionSolved;
+        stat.totalQuestionSolved = newTotalSolved;
         stat.solvedByProblemRating = metrics.solvedByProblemRating;
         stat.topicBreakdown = metrics.topicBreakdown;
         stat.contestHistory = contestHistory;
         stat.lastSyncedAt = Date.now();
+        
         await stat.save();
 
+        if (newlySolvedCount > 0) {
+            await updateHeatmap(req.user._id, "codeforces", newlySolvedCount);
+        }
 
     } catch(err){
         throw new ApiError(500,err.message || "Failed to connect with codeforces API");
     }
+    
     return res
     .status(200)
     .json(
