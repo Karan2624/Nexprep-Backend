@@ -57,7 +57,7 @@ const userSchema = new Schema({
             type : Number,
             default : 0
         },
-        codeforcesSubmission : {
+        codeforcesSubmissions : {
             type : Number ,
             default : 0
         },
@@ -70,7 +70,8 @@ const userSchema = new Schema({
             default : 0,
         }
         
-        },{_id : false})
+        },{_id : false}),
+        default : new Map()
     },
     lastMLRefreshAt : {
         type : Date,

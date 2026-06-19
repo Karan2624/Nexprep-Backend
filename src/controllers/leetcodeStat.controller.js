@@ -2,6 +2,7 @@ import { ApiError } from "../../utils/ApiError.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
 import { LeetcodeStat } from "../models/leetcodeStat.model.js";
+import updateHeatmap from "../../utils/heatmapUpdater.js";
 
 const fetchLeetcodeProfile = async (username) => {
     const response = await fetch(
@@ -153,54 +154,45 @@ const syncLeetcodeStat = asyncHandler(async (req, res) => {
     });
 
     if (!stat) {
-        throw new ApiError(
-            404,
-            "No linked Leetcode account found"
-        );
+        throw new ApiError(404, "No linked Leetcode account found");
     }
 
     const oneHour = 3600000;
-    const timeSinceLastSync =
-        Date.now() - stat.lastSyncedAt;
+    const timeSinceLastSync = Date.now() - stat.lastSyncedAt;
 
     if (timeSinceLastSync < oneHour) {
-        const minutesLeft = Math.ceil(
-            (oneHour - timeSinceLastSync) / 60000
-        );
-
-        throw new ApiError(
-            429,
-            `Please wait ${minutesLeft} minutes before syncing again.`
-        );
+        const minutesLeft = Math.ceil((oneHour - timeSinceLastSync) / 60000);
+        throw new ApiError(429, `Please wait ${minutesLeft} minutes before syncing again.`);
     }
 
     try {
-        const [profile, solved, contest, skill] =
-    await Promise.all([
-        fetchLeetcodeProfile(stat.username),
-        fetchLeetcodeSolved(stat.username),
-        fetchLeetcodeContest(stat.username),
-        fetchLeetcodeSkill(stat.username),
-    ]);
 
-const contestParticipation =
-    (contest.contestParticipation || []).map(
-        (item) => ({
-            attended: item.attended,
-            rating: item.rating,
-            ranking: item.ranking,
-            trendDirection: item.trendDirection,
-            problemsSolved: item.problemsSolved,
-            totalProblems: item.totalProblems,
-            finishTimeInSeconds:
-                item.finishTimeInSeconds,
-            contestTitle:
-                item.contest?.title,
-            contestDate:
-                new Date(item.startTime * 1000),
-        })
-    );
-        stat.totalSolved = solved.solvedProblem || 0;
+        const oldTotalSolved = stat.totalSolved || 0;
+
+        const [profile, solved, contest, skill] = await Promise.all([
+            fetchLeetcodeProfile(stat.username),
+            fetchLeetcodeSolved(stat.username),
+            fetchLeetcodeContest(stat.username),
+            fetchLeetcodeSkill(stat.username),
+        ]);
+
+        const contestParticipation = (contest.contestParticipation || []).map(
+            (item) => ({
+                attended: item.attended,
+                rating: item.rating,
+                ranking: item.ranking,
+                trendDirection: item.trendDirection,
+                problemsSolved: item.problemsSolved,
+                totalProblems: item.totalProblems,
+                finishTimeInSeconds: item.finishTimeInSeconds,
+                contestTitle: item.contest?.title,
+                contestDate: new Date(item.startTime * 1000),
+            })
+        );
+
+        const newTotalSolved = solved.solvedProblem || 0;
+        const newlySolvedCount = newTotalSolved - oldTotalSolved;
+        stat.totalSolved = newTotalSolved;
         stat.easySolved = solved.easySolved || 0;
         stat.mediumSolved = solved.mediumSolved || 0;
         stat.hardSolved = solved.hardSolved || 0;
@@ -208,34 +200,24 @@ const contestParticipation =
         stat.ranking = profile.ranking || 0;
         stat.reputation = profile.reputation || 0;
 
-        stat.contestRating =
-            contest.contestRating || 0;
+        stat.contestRating = contest.contestRating || 0;
+        stat.contestGlobalRanking = contest.contestGlobalRanking || 0;
+        stat.lastSyncedAt = Date.now();
 
-        stat.contestGlobalRanking =
-            contest.contestGlobalRanking || 0;
-            stat.lastSyncedAt = Date.now();
+        stat.topicBreakdown = getTopicBreakdown(skill);
+        stat.contestParticipation = contestParticipation;
 
-            stat.topicBreakdown =
-                getTopicBreakdown(skill);
-            
-            stat.contestParticipation =
-                contestParticipation;
-            
-            await stat.save();
+        await stat.save();
+
+        if (newlySolvedCount > 0) {
+            await updateHeatmap(req.user._id, "leetcode", newlySolvedCount);
+        }
 
         return res.status(200).json(
-            new ApiResponse(
-                200,
-                stat,
-                "Leetcode stats synced successfully"
-            )
+            new ApiResponse(200, stat, "Leetcode stats synced successfully")
         );
     } catch (error) {
-        throw new ApiError(
-            500,
-            error.message ||
-                "Failed to sync Leetcode stats"
-        );
+        throw new ApiError(500, error.message || "Failed to sync Leetcode stats");
     }
 });
 const getLeetcodeStat = asyncHandler(async (req, res) => {
