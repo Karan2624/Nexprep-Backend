@@ -29,6 +29,7 @@ import chatMessageRouter from "./routes/chatMessage.router.js"
 import communityPostRouter from "./routes/communityPost.router.js";
 import communityCommentRouter from "./routes/communityComment.router.js";
 import notificationRouter from "./routes/notification.router.js";
+import { ApiError } from "../utils/ApiError.js";
 
 
 
@@ -44,5 +45,22 @@ app.use("/api/v1/leetcodeStat", LeetcodeStatRouter);
 app.use("/api/v1/community-post",communityPostRouter);
 app.use("/api/v1/community-comment",communityCommentRouter);
 app.use("/api/v1/notification",notificationRouter);
+
+
+app.use((err, req, res, next) => {
+    if (err instanceof ApiError) {
+        return res.status(err.statusCode).json({
+            success: err.success,
+            message: err.message,
+            errors: err.errors,
+            data: err.data
+        });
+    }
+    console.error("UNEXPECTED ERROR:", err);
+    return res.status(500).json({
+        success: false,
+        message: err.message || "Internal Server Error",
+    });
+});
 
 export { app };
