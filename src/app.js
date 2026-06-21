@@ -29,6 +29,7 @@ import chatMessageRouter from "./routes/chatMessage.router.js"
 import communityPostRouter from "./routes/communityPost.router.js";
 import communityCommentRouter from "./routes/communityComment.router.js";
 import notificationRouter from "./routes/notification.router.js";
+import recommendationRouter from "./routes/recommendation.router.js";
 import { ApiError } from "../utils/ApiError.js";
 
 
@@ -45,6 +46,7 @@ app.use("/api/v1/leetcodeStat", LeetcodeStatRouter);
 app.use("/api/v1/community-post",communityPostRouter);
 app.use("/api/v1/community-comment",communityCommentRouter);
 app.use("/api/v1/notification",notificationRouter);
+app.use("/api/v1/recommendations", recommendationRouter);
 
 
 app.use((err, req, res, next) => {
