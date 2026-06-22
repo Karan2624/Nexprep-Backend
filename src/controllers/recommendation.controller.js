@@ -3,6 +3,8 @@ import { ApiResponse } from "../../utils/ApiResponse.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { LeetcodeStat } from "../models/leetcodeStat.model.js";
 import { CodeforcesStat } from "../models/codeforcesStat.model.js";
+import { LeetcodeRecommendation } from "../models/leetcodeRecommendation.model.js";
+import { CodeforcesRecommendation } from "../models/codeforcesRecommendation.model.js";
 import { User } from "../models/user.model.js";
 
 
@@ -48,6 +50,18 @@ const getLeetcodeRecommendations = asyncHandler(async (req, res) => {
         }
         
         const data = await response.json();
+
+        await LeetcodeRecommendation.findOneAndUpdate(
+            { userId: req.user._id },
+            {
+                $set: {
+                    calibration: data.calibration,
+                    recommendations: data.recommendations,
+                    masterySnapshot: data.mastery_snapshot
+                }
+            },
+            { new: true, upsert: true }
+        );
 
         await User.findByIdAndUpdate(req.user._id, {
             $set: { lastMLRefreshAt: Date.now() }
@@ -106,6 +120,16 @@ const getCfRecommendations = asyncHandler(async(req, res) => {
         throw new ApiError(response.status, "Failed to fetch Codeforces recommendations");
     }
     const data = await response.json();
+
+    await CodeforcesRecommendation.findOneAndUpdate(
+        { userId: req.user._id },
+        {
+            $set: {
+                recommendations: data.recommendations
+            }
+        },
+        { new: true, upsert: true }
+    );
 
     await User.findByIdAndUpdate(req.user._id, { $set: { lastMLRefreshAt: Date.now() } });
 
