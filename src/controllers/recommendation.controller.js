@@ -39,8 +39,9 @@ const getCodeforcesHandle = async (userId) => {
 
 const getLeetcodeRecommendations = asyncHandler(async (req, res) => {
     const username = await getLeetcodeUsername(req.user._id);
+    const top_k = req.query.top_k || 10
     try {
-        const response = await fetch(`${mlApiBase}/recommend/${username}?top_k=10`);
+        const response = await fetch(`${mlApiBase}/api/v1/recommend/${username}?top_k=${top_k}`);
         
         if (!response.ok) {
             throw new ApiError(response.status, "Failed to fetch recommendations from ML engine.");
@@ -66,7 +67,7 @@ const getLeetcodeRecommendations = asyncHandler(async (req, res) => {
 const getMastery = asyncHandler(async(req, res)=>{
     const username = await getLeetcodeUsername(req.user._id);
     try{
-        const response = await fetch(`${mlApiBase}/mastery/${username}`);
+        const response = await fetch(`${mlApiBase}/api/v1/mastery/${username}`);
         if(!response.ok){
             throw new ApiError(response.status, "Failed to fetch mastery data from ML engine.");
         }
@@ -81,7 +82,7 @@ const getMastery = asyncHandler(async(req, res)=>{
 const getWeakspots = asyncHandler(async(req, res) => {
     const username = await getLeetcodeUsername(req.user._id);
     try{
-        const response = await fetch(`${mlApiBase}/weakspots/${username}`);
+        const response = await fetch(`${mlApiBase}/api/v1/weakspots/${username}`);
         if(!response.ok){
             throw new ApiError(response.status, "Failed to fetch weakspots data from ML engine.");
         }
