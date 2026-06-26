@@ -121,22 +121,28 @@ const loginUser = asyncHandler(async (req, res) => {
         user._id
     ).select("-password -refreshToken");
 
-    const options = {
+    const accessTokenOptions = {
         httpOnly: true,
-        secure: false
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 1 * 24 * 60 * 60 * 1000 
     };
 
+    const refreshTokenOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 10 * 24 * 60 * 60 * 1000 
+    };
     return res
         .status(200)
         .cookie(
             "accessToken",
             accessToken,
-            options
+            accessTokenOptions
         )
         .cookie(
             "refreshToken",
             refreshToken,
-            options
+            refreshTokenOptions
         )
         .json(
             new ApiResponse(
@@ -165,7 +171,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 
     const options = {
         httpOnly: true,
-        secure: false
+        secure: process.env.NODE_ENV === "production" 
     };
 
     return res
