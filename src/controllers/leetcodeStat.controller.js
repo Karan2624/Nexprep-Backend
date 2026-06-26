@@ -104,9 +104,9 @@ const linkLeetcodeHandle = asyncHandler(async (req, res) => {
             contestTitle:
                 item.contest?.title,
 
-            contestDate: new Date(
-                item.contest?.startTime * 1000
-            ),
+            contestDate: item.contest?.startTime 
+            ? new Date(item.contest.startTime * 1000) 
+            : new Date()
         })
     );
         
