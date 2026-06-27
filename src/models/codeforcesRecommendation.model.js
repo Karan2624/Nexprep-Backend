@@ -10,6 +10,9 @@ const codeforcesRecommendationSchema = new Schema(
         recommendations: {
             type: [Schema.Types.Mixed],
             default: [],
+        },
+        cfProfile: {
+            type: Schema.Types.Mixed, 
         }
     },
     { timestamps: true }
