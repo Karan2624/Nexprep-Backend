@@ -85,6 +85,10 @@ const userSchema = new Schema({
         type: Date,
         default: null
     },
+    lastCfProfileRefreshAt:{
+        type: Date,
+        default: null
+    },
     refreshToken : {
         type : String
     },
