@@ -16,6 +16,9 @@ const leetcodeRecommendationSchema = new Schema(
         },
         masterySnapshot: {
             type: Schema.Types.Mixed,
+        },
+        weakspotsData: {
+            type: Schema.Types.Mixed,
         }
     },
     { timestamps: true }

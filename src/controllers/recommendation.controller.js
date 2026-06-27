@@ -7,13 +7,8 @@ import { LeetcodeRecommendation } from "../models/leetcodeRecommendation.model.j
 import { CodeforcesRecommendation } from "../models/codeforcesRecommendation.model.js";
 import { User } from "../models/user.model.js";
 
-
-
-
-
-
 const mlApiBase = process.env.FASTAPI_BASE_URL;
-
+const CACHE_DURATION_MS = 4 * 60 * 60 * 1000;
 
 const getLeetcodeUsername = async (userId) => {
     const stat = await LeetcodeStat.findOne({ userId });
@@ -22,11 +17,7 @@ const getLeetcodeUsername = async (userId) => {
         throw new ApiError(404, "Please link your LeetCode account first to get recommendations.");
     }
     return stat.username;
-}
-
-
-
-
+};
 
 
 const getCodeforcesHandle = async (userId) => {
@@ -39,14 +30,31 @@ const getCodeforcesHandle = async (userId) => {
 
 
 
+
+
+
+
+
 const getLeetcodeRecommendations = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user._id);
+    const lastRefresh = user.lastLcRefreshAt ? new Date(user.lastLcRefreshAt).getTime() : 0;
+    const timeSinceLastRefresh = Date.now() - lastRefresh;
+
+    if (timeSinceLastRefresh < CACHE_DURATION_MS) {
+        const cachedData = await LeetcodeRecommendation.findOne({ userId: req.user._id });
+        if (cachedData) {
+            return res.status(200).json(new ApiResponse(200, cachedData, "Recommendations served from cache"));
+        }
+    }
+
     const username = await getLeetcodeUsername(req.user._id);
-    const top_k = req.query.top_k || 10
+    const top_k = req.query.top_k || 10;
+    
     try {
         const response = await fetch(`${mlApiBase}/api/v1/recommend/${username}?top_k=${top_k}`);
         
         if (!response.ok) {
-            throw new ApiError(response.status, "Failed to fetch recommendations from ML engine.");
+            throw new ApiError(response.status, "Failed to fetch recommendations.");
         }
         
         const data = await response.json();
@@ -60,17 +68,14 @@ const getLeetcodeRecommendations = asyncHandler(async (req, res) => {
                     masterySnapshot: data.mastery_snapshot
                 }
             },
-            { new: true, upsert: true }
+            { returnDocument: "after", upsert: true }
         );
 
         await User.findByIdAndUpdate(req.user._id, {
-            $set: { lastMLRefreshAt: Date.now() }
+            $set: { lastLcRefreshAt: Date.now() }
         });
 
-       
-        return res
-            .status(200)
-            .json(new ApiResponse(200, data, "Recommendations fetched successfully"));
+        return res.status(200).json(new ApiResponse(200, data, "Recommendations fetched successfully"));
             
     } catch (error) {
         throw new ApiError(500, error.message || "Error connecting to recommendation service");
@@ -78,32 +83,41 @@ const getLeetcodeRecommendations = asyncHandler(async (req, res) => {
 });
 
 
-const getMastery = asyncHandler(async(req, res)=>{
-    const username = await getLeetcodeUsername(req.user._id);
-    try{
-        const response = await fetch(`${mlApiBase}/api/v1/mastery/${username}`);
-        if(!response.ok){
-            throw new ApiError(response.status, "Failed to fetch mastery data from ML engine.");
-        }
-        const data = await response.json();
-        return res.status(200).json(new ApiResponse(200, data, "Mastery data fetched successfully"));
-    } catch (error) {
-        throw new ApiError(500, error.message || "Error connecting to mastery service");
-    }
-});
-
 
 const getWeakspots = asyncHandler(async(req, res) => {
+    
+    const user = await User.findById(req.user._id);
+    const lastRefresh = user.lastWeakspotsRefreshAt ? new Date(user.lastWeakspotsRefreshAt).getTime() : 0;
+    const timeSinceLastRefresh = Date.now() - lastRefresh;
+
+    if (timeSinceLastRefresh < CACHE_DURATION_MS) {
+        const cachedData = await LeetcodeRecommendation.findOne({ userId: req.user._id });
+
+        if (cachedData && cachedData.weakspotsData) {
+            return res.status(200).json(new ApiResponse(200, cachedData.weakspotsData, "Weakspots data served from cache"));
+        }
+    }
+
     const username = await getLeetcodeUsername(req.user._id);
-    try{
+    try {
         const response = await fetch(`${mlApiBase}/api/v1/weakspots/${username}`);
-        if(!response.ok){
+        if (!response.ok) {
             throw new ApiError(response.status, "Failed to fetch weakspots data from ML engine.");
         }
         const data = await response.json();
-        return res.status(200).json(new ApiResponse(200, data, "Weakspots data fetched successfully"));
-    }
-    catch(error){
+
+        await LeetcodeRecommendation.findOneAndUpdate(
+            { userId: req.user._id },
+            { $set: { weakspotsData: data } },
+            { returnDocument: "after", upsert: true }
+        );
+
+        await User.findByIdAndUpdate(req.user._id, {
+            $set: { lastWeakspotsRefreshAt: Date.now() }
+        });
+
+        return res.status(200).json(new ApiResponse(200, data, "Weakspots data fetched and saved successfully"));
+    } catch(error) {
         throw new ApiError(500, error.message || "Error connecting to weakspots service");
     }
 });
@@ -112,11 +126,26 @@ const getWeakspots = asyncHandler(async(req, res) => {
 
 
 
+
+
+
+
 const getCfRecommendations = asyncHandler(async(req, res) => {
+    const user = await User.findById(req.user._id);
+    const lastRefresh = user.lastCfRefreshAt ? new Date(user.lastCfRefreshAt).getTime() : 0;
+    const timeSinceLastRefresh = Date.now() - lastRefresh;
+
+    if (timeSinceLastRefresh < CACHE_DURATION_MS) {
+        const cachedData = await CodeforcesRecommendation.findOne({ userId: req.user._id });
+        if (cachedData) {
+            return res.status(200).json(new ApiResponse(200, cachedData, "Codeforces recommendations served from cache"));
+        }
+    }
+
     const handle = await getCodeforcesHandle(req.user._id);
     
     const response = await fetch(`${mlApiBase}/api/cf/recommend/${handle}`);
-    if (!response.ok){
+    if (!response.ok) {
         throw new ApiError(response.status, "Failed to fetch Codeforces recommendations");
     }
     const data = await response.json();
@@ -125,15 +154,17 @@ const getCfRecommendations = asyncHandler(async(req, res) => {
         { userId: req.user._id },
         {
             $set: {
-                recommendations: data.recommendations
+                recommendations: data.recommendations,
+                masterySnapshot: data.mastery_snapshot
             }
         },
-        { new: true, upsert: true }
+        { returnDocument: "after", upsert: true }
     );
 
-    await User.findByIdAndUpdate(req.user._id, { $set: { lastMLRefreshAt: Date.now() } });
-
+    await User.findByIdAndUpdate(req.user._id, { 
+        $set: { lastCfRefreshAt: Date.now() } 
+    });
     return res.status(200).json(new ApiResponse(200, data, "Codeforces recommendations fetched successfully"));
 });
 
-export { getLeetcodeRecommendations, getMastery, getWeakspots, getCfRecommendations };
+export { getLeetcodeRecommendations, getWeakspots, getCfRecommendations };
