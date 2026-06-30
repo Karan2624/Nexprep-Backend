@@ -30,6 +30,10 @@ const sendMessage = asyncHandler(async (req, res) => {
     });
 
     message = await message.populate("senderId", "name avatar");
+    const io = req.app.get("io");
+    if(io){
+        io.to(groupId).emit("receiveMessage",message);
+    }
 
     return res
         .status(201)
@@ -90,6 +94,10 @@ const updateMessage = asyncHandler(async (req, res) => {
     await message.save();
 
     await message.populate("senderId", "name avatar");
+    const io = req.app.get("io");
+    if (io) {
+        io.to(message.groupId.toString()).emit("updateMessage", message);
+    }
 
     return res
         .status(200)
@@ -115,6 +123,10 @@ const deleteMessage = asyncHandler(async (req, res) => {
     }
 
     await ChatMessage.deleteOne({ _id: message._id });
+    const io = req.app.get("io");
+    if (io) {
+        io.to(message.groupId.toString()).emit("deleteMessage", messageId);
+    }
 
     return res
         .status(200)

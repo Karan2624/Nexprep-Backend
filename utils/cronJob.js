@@ -166,15 +166,22 @@ const startCronJobs = () => {
                     const newSol = met.total || 0;
                     const diff = newSol - oldSol;
 
-                    stat.rating = uInfo.rating || 0;
-                    stat.maxRating = uInfo.maxRating || 0;
-                    stat.rank = uInfo.rank || "unrated";
-                    stat.maxRank = uInfo.maxRank || "unrated";
-                    stat.totalQuestionSolved = newSol;
-                    stat.solvedByProblemRating = met.ratings;
-                    stat.topicBreakdown = met.topics;
-                    stat.contestHistory = cHist;
-                    stat.lastSyncedAt = Date.now();
+                    await CodeforcesStat.updateOne(
+                        { _id: stat._id },
+                        {
+                            $set: {
+                                rating: uInfo.rating || 0,
+                                maxRating: uInfo.maxRating || 0,
+                                rank: uInfo.rank || "unrated",
+                                maxRank: uInfo.maxRank || "unrated",
+                                totalQuestionSolved: newSol,
+                                solvedByProblemRating: met.ratings,
+                                topicBreakdown: met.topics,
+                                contestHistory: cHist,
+                                lastSyncedAt: Date.now()
+                            }
+                        }
+                    );
 
                     await stat.save();
 
@@ -198,12 +205,13 @@ const startCronJobs = () => {
                     const uid = stat.userId;
                     const oldSol = stat.totalSolved || 0;
 
-                    const [prof, sol, cont, skl] = await Promise.all([
-                        fetchLcProfile(stat.username),
-                        fetchLcSolved(stat.username),
-                        fetchLcContest(stat.username),
-                        fetchLcSkill(stat.username),
-                    ]);
+                    const prof = await fetchLcProfile(stat.username);
+                    await delay(5000);
+                    const sol = await fetchLcSolved(stat.username);
+                    await delay(5000);
+                    const cont = await fetchLcContest(stat.username);
+                    await delay(5000);
+                    const skl = await fetchLcSkill(stat.username);
 
                     const parts = (cont.contestParticipation || []).map((item) => ({
                         attended: item.attended,
@@ -220,19 +228,24 @@ const startCronJobs = () => {
                     const newSol = sol.solvedProblem || 0;
                     const diff = newSol - oldSol;
 
-                    stat.totalSolved = newSol;
-                    stat.easySolved = sol.easySolved || 0;
-                    stat.mediumSolved = sol.mediumSolved || 0;
-                    stat.hardSolved = sol.hardSolved || 0;
-                    stat.ranking = prof.ranking || 0;
-                    stat.reputation = prof.reputation || 0;
-                    stat.contestRating = cont.contestRating || 0;
-                    stat.contestGlobalRanking = cont.contestGlobalRanking || 0;
-                    stat.topicBreakdown = getLcTopics(skl);
-                    stat.contestParticipation = parts;
-                    stat.lastSyncedAt = Date.now();
-
-                    await stat.save();
+                    await LeetcodeStat.updateOne(
+                        {_id : stat._id},
+                        {
+                            $set : {
+                                totalSolved : newSol,
+                                easySolved : sol.easySolved || 0,
+                                mediumSolved : sol.mediumSolved || 0,
+                                hardSolved : sol.hardSolved || 0,
+                                ranking : sol.ranking || 0,
+                                reputation : sol.reputation || 0,
+                                contestRating : sol.contestRating || 0,
+                                contestGlobalRanking : sol.contestGlobalRanking || 0,
+                                topicBreakdown : getLcTopics(skl),
+                                contestParticipation : parts,
+                                lastSyncedAt : Date.now(),
+                            }
+                        }
+                    )
 
                     if (diff > 0 && uid) {
                         await updateHeatmap(uid, "leetcode", diff);
