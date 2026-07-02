@@ -18,8 +18,8 @@ const sendMessage = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Study group not found");
     }
 
-    if (!group.members.includes(req.user._id)) {
-        throw new ApiError(403, "You must join this study group before sending messages");
+     if (!group.members.some(memberId => memberId.toString() === req.user._id.toString()))  {
+        throw new ApiError(403, "You must join this study group to view messages");
     }
 
     let message = await ChatMessage.create({
@@ -30,6 +30,13 @@ const sendMessage = asyncHandler(async (req, res) => {
     });
 
     message = await message.populate("senderId", "name avatar");
+    const io = req.app.get("io");
+
+    if(io){
+        console.log(`Broadcasting to room: ${groupId.toString()}`);
+        console.log(`Message payload:`, message.content);
+        io.to(groupId).emit("receiveMessage",message);
+    }
 
     return res
         .status(201)
@@ -48,7 +55,7 @@ const getGroupMessages = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Study group not found");
     }
 
-    if (!group.members.includes(req.user._id)) {
+    if (!group.members.some(memberId => memberId.toString() === req.user._id.toString()))  {
         throw new ApiError(403, "You must join this study group to view messages");
     }
 
@@ -90,6 +97,10 @@ const updateMessage = asyncHandler(async (req, res) => {
     await message.save();
 
     await message.populate("senderId", "name avatar");
+    const io = req.app.get("io");
+    if (io) {
+        io.to(message.groupId.toString()).emit("updateMessage", message);
+    }
 
     return res
         .status(200)
@@ -115,6 +126,10 @@ const deleteMessage = asyncHandler(async (req, res) => {
     }
 
     await ChatMessage.deleteOne({ _id: message._id });
+    const io = req.app.get("io");
+    if (io) {
+        io.to(message.groupId.toString()).emit("deleteMessage", messageId);
+    }
 
     return res
         .status(200)
