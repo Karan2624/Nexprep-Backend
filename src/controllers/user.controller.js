@@ -6,6 +6,9 @@ import { User } from "../models/user.model.js";
 import jwt from "jsonwebtoken";
 
 const registerUser = asyncHandler( async(req,res) => {
+    console.log(req.body);
+    console.log(req.file);
+
     const {name,username,email,password} = req.body;
     if([name,username,email,password].some((field) => !field || field.trim()==="")){
         throw new ApiError(400,"All feild are required");
@@ -118,22 +121,28 @@ const loginUser = asyncHandler(async (req, res) => {
         user._id
     ).select("-password -refreshToken");
 
-    const options = {
+    const accessTokenOptions = {
         httpOnly: true,
-        secure: false
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 1 * 24 * 60 * 60 * 1000 
     };
 
+    const refreshTokenOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 10 * 24 * 60 * 60 * 1000 
+    };
     return res
         .status(200)
         .cookie(
             "accessToken",
             accessToken,
-            options
+            accessTokenOptions
         )
         .cookie(
             "refreshToken",
             refreshToken,
-            options
+            refreshTokenOptions
         )
         .json(
             new ApiResponse(
@@ -162,7 +171,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 
     const options = {
         httpOnly: true,
-        secure: false
+        secure: process.env.NODE_ENV === "production" 
     };
 
     return res
@@ -208,15 +217,22 @@ const refreshAccessToken = asyncHandler(async(req,res) => {
                 "Refresh token is expired or invalid"
             );
         }
-        const options = {
-            httpOnly : true,
-            secure : false
+        const accessTokenOptions = {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            maxAge: 1 * 24 * 60 * 60 * 1000 
+        };
+    
+        const refreshTokenOptions = {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            maxAge: 10 * 24 * 60 * 60 * 1000
         };
         const {accessToken,refreshToken} = await generateAccessandRefreshToken(user._id);
         return res
         .status(200)
-        .cookie("accessToken",accessToken,options)
-        .cookie("refreshToken",refreshToken,options)
+        .cookie("accessToken",accessToken,accessTokenOptions)
+        .cookie("refreshToken",refreshToken,refreshTokenOptions)
         .json(
             new ApiResponse(200,{accessToken,refreshToken},"Access token refreshed")
         );

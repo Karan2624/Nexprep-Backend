@@ -12,7 +12,9 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req,file,cb) => {
-    if(file.mimetype.startsWith("image/")){
+    console.log("Mimetype:", file.mimetype);
+    if(file.mimetype.startsWith("image/") ||
+    file.mimetype === "application/octet-stream"){
         cb(null,true);
     }
     else{

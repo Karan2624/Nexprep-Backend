@@ -73,8 +73,21 @@ const userSchema = new Schema({
         },{_id : false}),
         default : new Map()
     },
-    lastMLRefreshAt : {
-        type : Date,
+    lastLcRefreshAt: {
+        type: Date,
+        default: null
+    },
+    lastCfRefreshAt: {
+        type: Date,
+        default: null
+    },
+    lastWeakspotsRefreshAt:{
+        type: Date,
+        default: null
+    },
+    lastCfProfileRefreshAt:{
+        type: Date,
+        default: null
     },
     refreshToken : {
         type : String

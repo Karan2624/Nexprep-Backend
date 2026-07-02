@@ -104,9 +104,9 @@ const linkLeetcodeHandle = asyncHandler(async (req, res) => {
             contestTitle:
                 item.contest?.title,
 
-            contestDate: new Date(
-                item.startTime * 1000
-            ),
+            contestDate: item.contest?.startTime 
+            ? new Date(item.contest.startTime * 1000) 
+            : new Date()
         })
     );
         
@@ -186,7 +186,9 @@ const syncLeetcodeStat = asyncHandler(async (req, res) => {
                 totalProblems: item.totalProblems,
                 finishTimeInSeconds: item.finishTimeInSeconds,
                 contestTitle: item.contest?.title,
-                contestDate: new Date(item.startTime * 1000),
+                contestDate: item.contest?.startTime 
+                    ? new Date(item.contest.startTime * 1000) 
+                    : new Date()
             })
         );
 
@@ -220,8 +222,26 @@ const syncLeetcodeStat = asyncHandler(async (req, res) => {
         throw new ApiError(500, error.message || "Failed to sync Leetcode stats");
     }
 });
+const getLeetcodeStat = asyncHandler(async (req, res) => {
+    const stat = await LeetcodeStat.findOne({
+        userId: req.user._id,
+    });
+
+    if (!stat) {
+        throw new ApiError(404, "Leetcode stats not found");
+    }
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            stat,
+            "Leetcode stats fetched successfully"
+        )
+    );
+});
 
 export {
     linkLeetcodeHandle,
     syncLeetcodeStat,
+    getLeetcodeStat,
 };
