@@ -6,7 +6,10 @@ import { Notification } from "../models/notification.model.js";
 
 const getUserNotifications = asyncHandler(async (req, res) => {
 
-    const notifications = await Notification.find({ userId: req.user._id })
+    const notifications = await Notification.find({ 
+        userId: req.user._id,
+        isRead:false
+     })
         .sort({ createdAt: -1 })
         .limit(50);
 
