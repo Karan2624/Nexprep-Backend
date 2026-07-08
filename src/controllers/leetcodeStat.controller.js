@@ -3,11 +3,17 @@ import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
 import { LeetcodeStat } from "../models/leetcodeStat.model.js";
 import updateHeatmap from "../../utils/heatmapUpdater.js";
+import { User } from "../models/user.model.js";
 
 const fetchLeetcodeProfile = async (username) => {
     const response = await fetch(
         `https://alfa-leetcode-api.onrender.com/${username}`
     );
+
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+        throw new ApiError(502, "Leetcode API is currently rate-limiting. Please try again in a minute.");
+    }
 
     const data = await response.json();
 
@@ -132,6 +138,10 @@ const linkLeetcodeHandle = asyncHandler(async (req, res) => {
             topicBreakdown,
             contestParticipation,
         });
+        await User.findByIdAndUpdate(req.user._id, {
+            leetcodeProfileId: newStat._id,
+        });
+        
         return res.status(201).json(
             new ApiResponse(
                 200,
