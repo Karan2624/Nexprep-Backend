@@ -4,7 +4,7 @@ import { asyncHandler } from "../../utils/asyncHandler.js";
 import { CodeforcesStat } from "../models/codeforcesStat.model.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
 import updateHeatmap from "../../utils/heatmapUpdater.js";
-
+import { User } from "../models/user.model.js";
 
 const fetchCodeforcesUserInfo = async(handle) => {
     const response = await fetch(`https://codeforces.com/api/user.info?handles=${handle}`);
@@ -112,7 +112,10 @@ const linkCodeforcesHandle = asyncHandler(async(req,res) => {
             contestHistory
 
         })
-         return res
+        await User.findByIdAndUpdate(req.user._id, {
+            codeforcesProfileId: newStat._id,
+        });
+        return res
         .status(201)
         .json(
             new ApiResponse(200,newStat,"Codeforces id successfully linked")
