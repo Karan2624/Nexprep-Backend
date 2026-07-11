@@ -7,10 +7,7 @@ import { LeetcodeStat } from "../src/models/leetcodeStat.model.js";
 import { CodeforcesStat } from "../src/models/codeforcesStat.model.js";
 import { User } from "../src/models/user.model.js";
 
-
-
 const delay = (ms) => new Promise((res) => setTimeout(res, ms));
-
 
 const fetchCfUser = async (handle) => {
     const res = await fetch(`https://codeforces.com/api/user.info?handles=${handle}`);
@@ -62,7 +59,6 @@ const fetchCfMetrics = async (handle) => {
     return { total: solved.size, ratings, topics };
 };
 
-
 const fetchLcProfile = async (user) => {
     const res = await fetch(`https://alfa-leetcode-api.onrender.com/${user}`);
     return await res.json();
@@ -90,7 +86,6 @@ const getLcTopics = (skl) => {
     return Object.fromEntries(map);
 };
 
-
 const startCronJobs = () => {
   
     cron.schedule("0 * * * *", async () => {
@@ -99,7 +94,6 @@ const startCronJobs = () => {
     
             const t2 = new Date(now.getTime() + (2 * 60 * 60 * 1000));
             const t3 = new Date(now.getTime() + (3 * 60 * 60 * 1000));
-
 
             const tasks = await DailyTask.find({
                 targetDate: { $gte: t2, $lte: t3 },
@@ -148,8 +142,11 @@ const startCronJobs = () => {
             console.error("Error in Midnight Streak Sweeper:", error);
         }
     });
+
     cron.schedule("0 */4 * * *", async () => {
         console.log("Background profiles sync process started...");
+        
+
         try {
             const cfStats = await CodeforcesStat.find({});
             for (const stat of cfStats) {
@@ -157,11 +154,13 @@ const startCronJobs = () => {
                     const uid = stat.userId;
                     const oldSol = stat.totalQuestionSolved || 0;
 
-                    const [uInfo, cHist, met] = await Promise.all([
-                        fetchCfUser(stat.handle),
-                        fetchCfContest(stat.handle),
-                        fetchCfMetrics(stat.handle),
-                    ]);
+                    const uInfo = await fetchCfUser(stat.handle);
+                    await delay(5000); 
+                    
+                    const cHist = await fetchCfContest(stat.handle);
+                    await delay(5000); 
+                    
+                    const met = await fetchCfMetrics(stat.handle);
 
                     const newSol = met.total || 0;
                     const diff = newSol - oldSol;
@@ -205,12 +204,16 @@ const startCronJobs = () => {
                     const uid = stat.userId;
                     const oldSol = stat.totalSolved || 0;
 
+ 
                     const prof = await fetchLcProfile(stat.username);
-                    await delay(5000);
+                    await delay(15000);
+                    
                     const sol = await fetchLcSolved(stat.username);
-                    await delay(5000);
+                    await delay(15000);
+                    
                     const cont = await fetchLcContest(stat.username);
-                    await delay(5000);
+                    await delay(15000);
+                    
                     const skl = await fetchLcSkill(stat.username);
 
                     const parts = (cont.contestParticipation || []).map((item) => ({
@@ -222,7 +225,9 @@ const startCronJobs = () => {
                         totalProblems: item.totalProblems,
                         finishTimeInSeconds: item.finishTimeInSeconds,
                         contestTitle: item.contest?.title,
-                        contestDate: new Date(item.startTime * 1000),
+                        contestDate: item.contest?.startTime 
+                            ? new Date(item.contest.startTime * 1000) 
+                            : new Date()
                     }));
 
                     const newSol = sol.solvedProblem || 0;
@@ -254,7 +259,9 @@ const startCronJobs = () => {
                 } catch (err) {
                     console.error(`Error auto-syncing LC for ${stat.username}:`, err.message);
                 }
-                await delay(5000); 
+                
+                
+                await delay(15000); 
             }
         } catch (err) {
             console.error("Failed to query LeetCode documents:", err.message);
@@ -263,7 +270,5 @@ const startCronJobs = () => {
         console.log("Background profiles sync process finished complete.");
     });
 };
-
-
 
 export { startCronJobs };

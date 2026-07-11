@@ -50,6 +50,16 @@ const leetcodeStat = new Schema({
         default : {}
     },
 
+    ranking : {
+        type : Number,
+        default : 0
+    },
+
+    reputation : {
+        type : Number,
+        default : 0
+    },
+
     contestParticipation: [
         {
             attended: Boolean,

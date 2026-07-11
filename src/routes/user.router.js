@@ -12,4 +12,4 @@ router.route("/refresh-token").post(refreshAccessToken);
 router.route("/update-avatar").patch(verifyJWT,upload.single("avatar"),updateUserAvatar);
 router.route("/me").get(verifyJWT,getCurrentUser);
 
-export default router;
+export default router
