@@ -48,6 +48,9 @@ const getAllCompanies = asyncHandler(async (req, res) => {
 });
 
 const getCompanyById = asyncHandler(async (req, res) => {
+    console.log("params =", req.params);
+    console.log("companyId =", req.params.companyId);
+
     const { companyId } = req.params;
 
     const company = await Company.findById(companyId);
@@ -58,7 +61,13 @@ const getCompanyById = asyncHandler(async (req, res) => {
 
     return res
         .status(200)
-        .json(new ApiResponse(200, company, "Company details fetched successfully"));
+        .json(
+            new ApiResponse(
+                200,
+                company,
+                "Company details fetched successfully"
+            )
+        );
 });
 
 export { createCompany, getAllCompanies, getCompanyById };
