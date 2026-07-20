@@ -206,13 +206,13 @@ const startCronJobs = () => {
 
  
                     const prof = await fetchLcProfile(stat.username);
-                    await delay(15000);
+                    await delay(35000);
                     
                     const sol = await fetchLcSolved(stat.username);
-                    await delay(15000);
+                    await delay(35000);
                     
                     const cont = await fetchLcContest(stat.username);
-                    await delay(15000);
+                    await delay(35000);
                     
                     const skl = await fetchLcSkill(stat.username);
 
@@ -261,7 +261,7 @@ const startCronJobs = () => {
                 }
                 
                 
-                await delay(15000); 
+                await delay(35000); 
             }
         } catch (err) {
             console.error("Failed to query LeetCode documents:", err.message);
