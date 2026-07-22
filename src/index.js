@@ -15,12 +15,14 @@ dotenv.config({
 
 const httpServer = createServer(app);
 
-const io = new Server(httpServer,{
-    cors : {
-        origin : process.env.CORS_ORIGIN,
-        credentials : true
-    }
-})
+const io = new Server(httpServer, {
+  cors: {
+
+    origin: [process.env.CORS_ORIGIN, "http://localhost:3000"],
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
 
 app.set("io",io);
 
