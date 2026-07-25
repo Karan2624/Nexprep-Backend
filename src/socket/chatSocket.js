@@ -4,21 +4,22 @@ import { User } from "../models/user.model.js";
 export const initializeChatSocket = (io) => {
     io.use(async (socket, next) => {
         try {
-            // 1. Grab the raw cookie string from the handshake headers
-            const cookieString = socket.request.headers.cookie || "";
-            
-            // 2. Parse the cookie string to find the 'accessToken'
-            // (If you named your cookie something else like 'token', change 'accessToken=' below)
-            const token = cookieString
-                .split('; ')
-                .find(row => row.startsWith('accessToken='))
-                ?.split('=')[1];
+           
+            let token = socket.handshake.auth?.token;
 
-            if (!token) return next(new Error("Unauthorized: No token found in cookies"));
+            if (!token) {
+                const cookieString = socket.request.headers.cookie || "";
+                token = cookieString
+                    .split('; ')
+                    .find(row => row.startsWith('accessToken='))
+                    ?.split('=')[1];
+            }
 
-            // 3. Verify exactly as you were before
+            if (!token) return next(new Error("Unauthorized: No token found in cookies or auth"));
+
+         
             const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-            const user = await User.findById(decoded._id).select("-password  -refreshToken");
+            const user = await User.findById(decoded._id).select("-password -refreshToken");
             
             if (!user) {
                 return next(new Error("Invalid token!"));

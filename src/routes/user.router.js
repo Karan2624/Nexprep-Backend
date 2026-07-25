@@ -11,5 +11,8 @@ router.route("/logout").post(verifyJWT,logoutUser);
 router.route("/refresh-token").post(refreshAccessToken);
 router.route("/update-avatar").patch(verifyJWT,upload.single("avatar"),updateUserAvatar);
 router.route("/me").get(verifyJWT,getCurrentUser);
+router.route("/socket-token").get(verifyJWT, (req, res) => {
+    res.status(200).json({ accessToken: req.cookies?.accessToken });
+});
 
 export default router
