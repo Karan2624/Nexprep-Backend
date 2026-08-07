@@ -108,4 +108,21 @@ const completeTask = asyncHandler(async(req,res) => {
 })
 
 
-export { createDailyTask, deleteDailyTask, getDailyTasks,completeTask};
+const getPendingPreviousTasks = asyncHandler(async (req, res) => {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const tasks = await DailyTask.find({
+        userId: req.user._id,
+        isCompleted: false,
+        targetDate: { $lt: startOfToday }
+    })
+    .populate("linkedPyqId", "title difficulty")
+    .sort({ targetDate: 1 });
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, tasks, "Pending previous tasks fetched successfully"));
+});
+
+export { createDailyTask, deleteDailyTask, getDailyTasks, completeTask, getPendingPreviousTasks };
