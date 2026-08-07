@@ -33,6 +33,10 @@ const codeforcesStat = new Schema({
         type : Number,
         default : 0
     },
+    totalSubmissions : {
+        type : Number,
+        default : 0
+    },
     solvedByProblemRating : {
         type : Map,
         of : Number,
