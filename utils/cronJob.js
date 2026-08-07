@@ -39,8 +39,10 @@ const fetchCfMetrics = async (handle) => {
     const solved = new Set();
     const ratings = {};
     const topics = {};
+    let totalSubmissions = 0;
 
     if (data.status === "OK") {
+        totalSubmissions = data.result.length;
         data.result.forEach((sub) => {
             if (sub.verdict === "OK") {
                 const pid = `${sub.problem?.contestId}-${sub.problem?.index}`;
@@ -59,12 +61,12 @@ const fetchCfMetrics = async (handle) => {
             }
         });
     }
-    return { total: solved.size, ratings, topics };
+    return { total: solved.size, ratings, topics, totalSubmissions };
 };
 
 
 const fetchLcProfile = async (user) => {
-    const res = await fetch(`https://alfa-leetcode-api.onrender.com/${user}`);
+    const res = await fetch(`https://alfa-leetcode-api.onrender.com/${user}/profile`);
     return await res.json();
 };
 
@@ -148,23 +150,26 @@ const startCronJobs = () => {
             console.error("Error in Midnight Streak Sweeper:", error);
         }
     });
-    cron.schedule("0 */4 * * *", async () => {
+    cron.schedule("0 */6 * * *", async () => {
         console.log("Background profiles sync process started...");
         try {
             const cfStats = await CodeforcesStat.find({});
             for (const stat of cfStats) {
                 try {
                     const uid = stat.userId;
-                    const oldSol = stat.totalQuestionSolved || 0;
+                    const oldSubmissions = stat.totalSubmissions || 0;
 
-                    const [uInfo, cHist, met] = await Promise.all([
-                        fetchCfUser(stat.handle),
-                        fetchCfContest(stat.handle),
-                        fetchCfMetrics(stat.handle),
-                    ]);
+                    const uInfo = await fetchCfUser(stat.handle);
+                    await delay(5000); 
+                    
+                    const cHist = await fetchCfContest(stat.handle);
+                    await delay(5000); 
+                    
+                    const met = await fetchCfMetrics(stat.handle);
 
-                    const newSol = met.total || 0;
-                    const diff = newSol - oldSol;
+                    const newSubmissions = met.totalSubmissions || oldSubmissions;
+                    const diff = newSubmissions - oldSubmissions;
+                    const newSol = met.total || stat.totalQuestionSolved || 0;
 
                     await CodeforcesStat.updateOne(
                         { _id: stat._id },
@@ -175,6 +180,7 @@ const startCronJobs = () => {
                                 rank: uInfo.rank || "unrated",
                                 maxRank: uInfo.maxRank || "unrated",
                                 totalQuestionSolved: newSol,
+                                totalSubmissions: newSubmissions,
                                 solvedByProblemRating: met.ratings,
                                 topicBreakdown: met.topics,
                                 contestHistory: cHist,
@@ -203,14 +209,18 @@ const startCronJobs = () => {
             for (const stat of lcStats) {
                 try {
                     const uid = stat.userId;
-                    const oldSol = stat.totalSolved || 0;
+                    const oldSubmissions = stat.totalSubmissions || 0;
 
+ 
                     const prof = await fetchLcProfile(stat.username);
-                    await delay(5000);
+                    await delay(35000);
+                    
                     const sol = await fetchLcSolved(stat.username);
-                    await delay(5000);
+                    await delay(35000);
+                    
                     const cont = await fetchLcContest(stat.username);
-                    await delay(5000);
+                    await delay(35000);
+                    
                     const skl = await fetchLcSkill(stat.username);
 
                     const parts = (cont.contestParticipation || []).map((item) => ({
@@ -222,24 +232,33 @@ const startCronJobs = () => {
                         totalProblems: item.totalProblems,
                         finishTimeInSeconds: item.finishTimeInSeconds,
                         contestTitle: item.contest?.title,
-                        contestDate: new Date(item.startTime * 1000),
+                        contestDate: item.contest?.startTime 
+                            ? new Date(item.contest.startTime * 1000) 
+                            : new Date()
                     }));
 
-                    const newSol = sol.solvedProblem || 0;
-                    const diff = newSol - oldSol;
+                    let newSubmissions = oldSubmissions;
+                    if (prof && prof.totalSubmissions) {
+                        const allStats = prof.totalSubmissions.find(s => s.difficulty === "All");
+                        if (allStats) newSubmissions = allStats.submissions;
+                    }
+
+                    const diff = newSubmissions - oldSubmissions;
+                    const newSol = sol.solvedProblem || stat.totalSolved || 0;
 
                     await LeetcodeStat.updateOne(
                         {_id : stat._id},
                         {
                             $set : {
                                 totalSolved : newSol,
+                                totalSubmissions: newSubmissions,
                                 easySolved : sol.easySolved || 0,
                                 mediumSolved : sol.mediumSolved || 0,
                                 hardSolved : sol.hardSolved || 0,
-                                ranking : sol.ranking || 0,
-                                reputation : sol.reputation || 0,
-                                contestRating : sol.contestRating || 0,
-                                contestGlobalRanking : sol.contestGlobalRanking || 0,
+                                ranking : prof.ranking || 0,
+                                reputation : prof.reputation || 0,
+                                contestRating : cont.contestRating || 0,
+                                contestGlobalRanking : cont.contestGlobalRanking || 0,
                                 topicBreakdown : getLcTopics(skl),
                                 contestParticipation : parts,
                                 lastSyncedAt : Date.now(),

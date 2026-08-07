@@ -87,47 +87,47 @@ const linkLeetcodeHandle = asyncHandler(async (req, res) => {
         ]);
         const topicBreakdown = getTopicBreakdown(skill);
         const contestParticipation =
-    (contest.contestParticipation || []).map(
-        (item) => ({
-            attended: item.attended,
-            rating: item.rating,
-            ranking: item.ranking,
-            trendDirection:
-                item.trendDirection,
-            problemsSolved:
-                item.problemsSolved,
-            totalProblems:
-                item.totalProblems,
-            finishTimeInSeconds:
-                item.finishTimeInSeconds,
+            (contest.contestParticipation || []).map(
+                (item) => ({
+                    attended: item.attended,
+                    rating: item.rating,
+                    ranking: item.ranking,
+                    trendDirection:
+                        item.trendDirection,
+                    problemsSolved:
+                        item.problemsSolved,
+                    totalProblems:
+                        item.totalProblems,
+                    finishTimeInSeconds:
+                        item.finishTimeInSeconds,
 
-            contestTitle:
-                item.contest?.title,
+                    contestTitle:
+                        item.contest?.title,
 
-            contestDate: item.contest?.startTime 
-            ? new Date(item.contest.startTime * 1000) 
-            : new Date()
-        })
-    );
-        
+                    contestDate: item.contest?.startTime
+                        ? new Date(item.contest.startTime * 1000)
+                        : new Date()
+                })
+            );
+
         console.log("SKILL DATA:");
         console.log(JSON.stringify(skill, null, 2));
 
         const newStat = await LeetcodeStat.create({
             userId: req.user?._id,
             username,
-        
+
             totalSolved: solved.solvedProblem || 0,
             easySolved: solved.easySolved || 0,
             mediumSolved: solved.mediumSolved || 0,
             hardSolved: solved.hardSolved || 0,
-        
+
             ranking: profile.ranking || 0,
             reputation: profile.reputation || 0,
-        
+
             contestRating: contest.contestRating || 0,
             contestGlobalRanking:
-            contest.contestGlobalRanking || 0,
+                contest.contestGlobalRanking || 0,
 
             topicBreakdown,
             contestParticipation,
@@ -143,7 +143,7 @@ const linkLeetcodeHandle = asyncHandler(async (req, res) => {
         throw new ApiError(
             500,
             error.message ||
-                "Failed to connect with Leetcode API"
+            "Failed to connect with Leetcode API"
         );
     }
 });
@@ -186,8 +186,8 @@ const syncLeetcodeStat = asyncHandler(async (req, res) => {
                 totalProblems: item.totalProblems,
                 finishTimeInSeconds: item.finishTimeInSeconds,
                 contestTitle: item.contest?.title,
-                contestDate: item.contest?.startTime 
-                    ? new Date(item.contest.startTime * 1000) 
+                contestDate: item.contest?.startTime
+                    ? new Date(item.contest.startTime * 1000)
                     : new Date()
             })
         );
