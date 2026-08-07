@@ -119,11 +119,18 @@ const linkLeetcodeHandle = asyncHandler(async (req, res) => {
         console.log("SKILL DATA:");
         console.log(JSON.stringify(skill, null, 2));
 
+        let totalSubmissions = 0;
+        if (profile && profile.totalSubmissions) {
+            const allStats = profile.totalSubmissions.find(s => s.difficulty === "All");
+            if (allStats) totalSubmissions = allStats.submissions;
+        }
+
         const newStat = await LeetcodeStat.create({
             userId: req.user?._id,
             username,
 
             totalSolved: solved.solvedProblem || 0,
+            totalSubmissions: totalSubmissions,
             easySolved: solved.easySolved || 0,
             mediumSolved: solved.mediumSolved || 0,
             hardSolved: solved.hardSolved || 0,
@@ -177,7 +184,7 @@ const syncLeetcodeStat = asyncHandler(async (req, res) => {
 
     try {
 
-        const oldTotalSolved = stat.totalSolved || 0;
+        const oldTotalSubmissions = stat.totalSubmissions || 0;
 
         const [profile, solved, contest, skill] = await Promise.all([
             fetchLeetcodeProfile(stat.username),
@@ -202,9 +209,15 @@ const syncLeetcodeStat = asyncHandler(async (req, res) => {
             })
         );
 
-        const newTotalSolved = solved.solvedProblem || 0;
-        const newlySolvedCount = newTotalSolved - oldTotalSolved;
-        stat.totalSolved = newTotalSolved;
+        let newTotalSubmissions = oldTotalSubmissions;
+        if (profile && profile.totalSubmissions) {
+            const allStats = profile.totalSubmissions.find(s => s.difficulty === "All");
+            if (allStats) newTotalSubmissions = allStats.submissions;
+        }
+
+        const newSubmissionsCount = newTotalSubmissions - oldTotalSubmissions;
+        stat.totalSolved = solved.solvedProblem || 0;
+        stat.totalSubmissions = newTotalSubmissions;
         stat.easySolved = solved.easySolved || 0;
         stat.mediumSolved = solved.mediumSolved || 0;
         stat.hardSolved = solved.hardSolved || 0;
@@ -221,8 +234,8 @@ const syncLeetcodeStat = asyncHandler(async (req, res) => {
 
         await stat.save();
 
-        if (newlySolvedCount > 0) {
-            await updateHeatmap(req.user._id, "leetcode", newlySolvedCount);
+        if (newSubmissionsCount > 0) {
+            await updateHeatmap(req.user._id, "leetcode", newSubmissionsCount);
         }
 
         return res.status(200).json(
