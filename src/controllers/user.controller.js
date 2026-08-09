@@ -4,14 +4,15 @@ import { asyncHandler } from "../../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../../utils/cloudinary.js";
 import { User } from "../models/user.model.js";
 import jwt from "jsonwebtoken";
+import { sendVerificationEmail } from "../utils/mailer.js";
 
-const registerUser = asyncHandler( async(req,res) => {
+const registerUser = asyncHandler(async (req, res) => {
     console.log(req.body);
     console.log(req.file);
 
-    const {name,username,email,password} = req.body;
-    if([name,username,email,password].some((field) => !field || field.trim()==="")){
-        throw new ApiError(400,"All feild are required");
+    const { name, username, email, password } = req.body;
+    if ([name, username, email, password].some((field) => !field || field.trim() === "")) {
+        throw new ApiError(400, "All feild are required");
     }
     //get user details
     //check whether they exist or not 
@@ -23,35 +24,43 @@ const registerUser = asyncHandler( async(req,res) => {
     //check for user creation
 
     const existingUser = await User.findOne({
-        $or: [{username},{email}]
+        $or: [{ username }, { email }]
     })
-    if(existingUser){
-        throw new ApiError(401,"Username with email already exist")
+    if (existingUser) {
+        throw new ApiError(401, "Username with email already exist")
     }
     const localAvatarPath = req.file?.path;
     console.log(req.file);
     const avatar = await uploadOnCloudinary(localAvatarPath);
     const user = await User.create({
         name,
-        username : username.toLowerCase(),
-        avatar : avatar?.url || "",
+        username: username.toLowerCase(),
+        avatar: avatar?.url || "",
         email,
         password,
 
     })
     const createdUser = await User.findById(user._id).select("-password -refreshToken");
-    if(!createdUser){
-        throw new ApiError(500,"Something went wrong while adding user");
+    if (!createdUser) {
+        throw new ApiError(500, "Something went wrong while adding user");
     }
+
+    // Generate email verification token and send email
+    const emailToken = jwt.sign(
+        { email: createdUser.email },
+        process.env.EMAIL_SECRET,
+        { expiresIn: '15m' }
+    );
+    await sendVerificationEmail(createdUser.email, emailToken);
     return res
-.status(201)
-.json(
-    new ApiResponse(
-        201,
-        createdUser,
-        "User has been registered successfully"
-    )
-);
+        .status(201)
+        .json(
+            new ApiResponse(
+                201,
+                createdUser,
+                "User has been registered successfully"
+            )
+        );
 })
 
 const generateAccessandRefreshToken = async (userId) => {
@@ -60,10 +69,10 @@ const generateAccessandRefreshToken = async (userId) => {
         const accessToken = user.generateAccessToken();
         const refreshToken = user.generateRefreshToken();
         user.refreshToken = refreshToken;
-        await user.save({validateBeforeSave:false});
-        return {accessToken,refreshToken};
-    } catch(err){
-        throw new ApiError(500,"Something went wrong while generating refresh and access token");
+        await user.save({ validateBeforeSave: false });
+        return { accessToken, refreshToken };
+    } catch (err) {
+        throw new ApiError(500, "Something went wrong while generating refresh and access token");
     }
 }
 
@@ -110,6 +119,13 @@ const loginUser = asyncHandler(async (req, res) => {
         );
     }
 
+    if (!user.isEmailVerified) {
+        throw new ApiError(
+            403,
+            "Please verify your email before logging in."
+        );
+    }
+
     const {
         accessToken,
         refreshToken
@@ -124,13 +140,13 @@ const loginUser = asyncHandler(async (req, res) => {
     const accessTokenOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        maxAge: 1 * 24 * 60 * 60 * 1000 
+        maxAge: 1 * 24 * 60 * 60 * 1000
     };
 
     const refreshTokenOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        maxAge: 10 * 24 * 60 * 60 * 1000 
+        maxAge: 10 * 24 * 60 * 60 * 1000
     };
     return res
         .status(200)
@@ -171,7 +187,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 
     const options = {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production" 
+        secure: process.env.NODE_ENV === "production"
     };
 
     return res
@@ -186,28 +202,28 @@ const logoutUser = asyncHandler(async (req, res) => {
             )
         );
 });
-const refreshAccessToken = asyncHandler(async(req,res) => {
+const refreshAccessToken = asyncHandler(async (req, res) => {
     const incomingRefreshToken = req.cookies.refreshToken;
     console.log("Incoming Cookie Token:", incomingRefreshToken);
-    if(!incomingRefreshToken){
-        throw new ApiError(400,"Unauthorized request");
+    if (!incomingRefreshToken) {
+        throw new ApiError(400, "Unauthorized request");
     }
-    try{
-        const decoded_token = jwt.verify(incomingRefreshToken,process.env.REFRESH_TOKEN_SECRET);
-        if(!decoded_token){
-            throw new ApiError(400,"Invalid refresh token");
+    try {
+        const decoded_token = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET);
+        if (!decoded_token) {
+            throw new ApiError(400, "Invalid refresh token");
         }
         const user = await User.findById(
             decoded_token._id
         );
-        
+
         if (!user) {
             throw new ApiError(
                 404,
                 "User not found"
             );
         }
-        
+
         if (
             user.refreshToken !==
             incomingRefreshToken
@@ -220,53 +236,53 @@ const refreshAccessToken = asyncHandler(async(req,res) => {
         const accessTokenOptions = {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
-            maxAge: 1 * 24 * 60 * 60 * 1000 
+            maxAge: 1 * 24 * 60 * 60 * 1000
         };
-    
+
         const refreshTokenOptions = {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             maxAge: 10 * 24 * 60 * 60 * 1000
         };
-        const {accessToken,refreshToken} = await generateAccessandRefreshToken(user._id);
+        const { accessToken, refreshToken } = await generateAccessandRefreshToken(user._id);
         return res
-        .status(200)
-        .cookie("accessToken",accessToken,accessTokenOptions)
-        .cookie("refreshToken",refreshToken,refreshTokenOptions)
-        .json(
-            new ApiResponse(200,{accessToken,refreshToken},"Access token refreshed")
-        );
+            .status(200)
+            .cookie("accessToken", accessToken, accessTokenOptions)
+            .cookie("refreshToken", refreshToken, refreshTokenOptions)
+            .json(
+                new ApiResponse(200, { accessToken, refreshToken }, "Access token refreshed")
+            );
 
-    } catch (err){
-        throw new ApiError(401,err.message || "Invalid refresh token");
+    } catch (err) {
+        throw new ApiError(401, err.message || "Invalid refresh token");
     }
 })
 
-const updateUserAvatar = asyncHandler(async(req,res) => {
+const updateUserAvatar = asyncHandler(async (req, res) => {
     const localAvatarPath = req.file?.path;
     console.log(req.file?.path);
-    if(!localAvatarPath){
-        throw new ApiError(400,"Avatar fils is missing");
+    if (!localAvatarPath) {
+        throw new ApiError(400, "Avatar fils is missing");
     }
     const avatar = await uploadOnCloudinary(localAvatarPath);
-    if(!avatar){
-        throw new ApiError(400,"Error while uploading file on cloudinary");
+    if (!avatar) {
+        throw new ApiError(400, "Error while uploading file on cloudinary");
     }
     const user = await User.findByIdAndUpdate(
         req.user._id,
         {
-            $set : {
-                avatar : avatar.url
+            $set: {
+                avatar: avatar.url
             }
-        },{
-            new : true
-        }
+        }, {
+        new: true
+    }
     ).select("-password");
     return res
-    .status(200)
-    .json(
-        new ApiResponse(200,user,"Avatar file is updated")
-    );
+        .status(200)
+        .json(
+            new ApiResponse(200, user, "Avatar file is updated")
+        );
 })
 
 const getCurrentUser = asyncHandler(async (req, res) => {
@@ -274,11 +290,119 @@ const getCurrentUser = asyncHandler(async (req, res) => {
         .status(200)
         .json(
             new ApiResponse(
-                200, 
-                req.user, 
+                200,
+                req.user,
                 "Current user profile fetched successfully"
             )
         );
 });
 
-export {registerUser,loginUser, logoutUser,refreshAccessToken,updateUserAvatar,getCurrentUser};
+const verifyEmail = asyncHandler(async (req, res) => {
+    const { token } = req.body;
+    if (!token) {
+        throw new ApiError(400, "Verification token is missing");
+    }
+
+    try {
+        const decodedToken = jwt.verify(token, process.env.EMAIL_SECRET);
+        const user = await User.findOne({ email: decodedToken.email });
+
+        if (!user) {
+            throw new ApiError(404, "User not found");
+        }
+
+        if (user.isEmailVerified) {
+            return res.status(200).json(new ApiResponse(200, {}, "Email is already verified"));
+        }
+
+        user.isEmailVerified = true;
+        await user.save({ validateBeforeSave: false });
+
+        return res.status(200).json(
+            new ApiResponse(200, {}, "Email verified successfully")
+        );
+    } catch (error) {
+        throw new ApiError(401, "Invalid or expired verification token");
+    }
+});
+
+const resendVerificationEmail = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+    
+    if (!email) {
+        throw new ApiError(400, "Email is required");
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    if (user.isEmailVerified) {
+        return res.status(200).json(
+            new ApiResponse(200, {}, "Email is already verified")
+        );
+    }
+
+    // Generate a fresh token
+    const emailToken = jwt.sign(
+        { email: user.email }, 
+        process.env.EMAIL_SECRET, 
+        { expiresIn: '15m' }
+    );
+    
+    await sendVerificationEmail(user.email, emailToken);
+
+    return res.status(200).json(
+        new ApiResponse(200, {}, "Verification email resent successfully")
+    );
+});
+
+const updateUnverifiedEmail = asyncHandler(async (req, res) => {
+    const { username, password, newEmail } = req.body;
+
+    if (!username || !password || !newEmail) {
+        throw new ApiError(400, "Username, password, and new email are required");
+    }
+
+    const user = await User.findOne({ username: username.toLowerCase() });
+
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    const isPasswordCorrect = await user.isPasswordCorrect(password);
+    if (!isPasswordCorrect) {
+        throw new ApiError(401, "Invalid credentials");
+    }
+
+    if (user.isEmailVerified) {
+        throw new ApiError(400, "Email is already verified. You cannot change it this way.");
+    }
+
+    // Check if new email is already taken by someone else
+    const existingEmail = await User.findOne({ email: newEmail.toLowerCase() });
+    if (existingEmail) {
+        throw new ApiError(400, "This email is already in use by another account");
+    }
+
+    // Update email
+    user.email = newEmail.toLowerCase();
+    await user.save({ validateBeforeSave: false });
+
+    // Generate new token and send email
+    const emailToken = jwt.sign(
+        { email: user.email }, 
+        process.env.EMAIL_SECRET, 
+        { expiresIn: '15m' }
+    );
+    
+    await sendVerificationEmail(user.email, emailToken);
+
+    return res.status(200).json(
+        new ApiResponse(200, {}, "Email updated and verification link sent")
+    );
+});
+
+export {registerUser,loginUser, logoutUser,refreshAccessToken,updateUserAvatar,getCurrentUser,verifyEmail,resendVerificationEmail,updateUnverifiedEmail};

@@ -95,6 +95,10 @@ const userSchema = new Schema({
     isActive : {
         type : Boolean,
         default : true,
+    },
+    isEmailVerified: {
+        type: Boolean,
+        default: false,
     }
 },{timestamps : true});
 
