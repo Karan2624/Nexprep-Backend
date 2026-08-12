@@ -360,13 +360,17 @@ const resendVerificationEmail = asyncHandler(async (req, res) => {
 });
 
 const updateUnverifiedEmail = asyncHandler(async (req, res) => {
-    const { username, password, newEmail } = req.body;
+    const { username, email, password, newEmail } = req.body;
 
-    if (!username || !password || !newEmail) {
-        throw new ApiError(400, "Username, password, and new email are required");
+    if ((!username && !email) || !password || !newEmail) {
+        throw new ApiError(400, "Username or email, password, and new email are required");
     }
 
-    const user = await User.findOne({ username: username.toLowerCase() });
+    const searchCriteria = username 
+        ? { username: username.toLowerCase() } 
+        : { email: email.toLowerCase() };
+
+    const user = await User.findOne(searchCriteria);
 
     if (!user) {
         throw new ApiError(404, "User not found");
