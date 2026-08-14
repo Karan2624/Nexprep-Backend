@@ -4,7 +4,7 @@ import { asyncHandler } from "../../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../../utils/cloudinary.js";
 import { User } from "../models/user.model.js";
 import jwt from "jsonwebtoken";
-import { sendVerificationEmail } from "../utils/mailer.js";
+import { sendVerificationEmail, sendPasswordResetEmail } from "../utils/mailer.js";
 
 const registerUser = asyncHandler(async (req, res) => {
     console.log(req.body);
@@ -140,12 +140,14 @@ const loginUser = asyncHandler(async (req, res) => {
     const accessTokenOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         maxAge: 1 * 24 * 60 * 60 * 1000
     };
 
     const refreshTokenOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         maxAge: 10 * 24 * 60 * 60 * 1000
     };
     return res
@@ -187,7 +189,8 @@ const logoutUser = asyncHandler(async (req, res) => {
 
     const options = {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production"
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax"
     };
 
     return res
@@ -236,12 +239,14 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         const accessTokenOptions = {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
             maxAge: 1 * 24 * 60 * 60 * 1000
         };
 
         const refreshTokenOptions = {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
             maxAge: 10 * 24 * 60 * 60 * 1000
         };
         const { accessToken, refreshToken } = await generateAccessandRefreshToken(user._id);
@@ -409,4 +414,65 @@ const updateUnverifiedEmail = asyncHandler(async (req, res) => {
     );
 });
 
-export {registerUser,loginUser, logoutUser,refreshAccessToken,updateUserAvatar,getCurrentUser,verifyEmail,resendVerificationEmail,updateUnverifiedEmail};
+const forgotPassword = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+    if (!email) {
+        throw new ApiError(400, "Email is required");
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+        // Return 200 even if user not found to prevent email enumeration attacks
+        return res.status(200).json(new ApiResponse(200, {}, "If an account with that email exists, a reset link has been sent."));
+    }
+
+    // Generate token with a specific purpose
+    const resetToken = jwt.sign(
+        { email: user.email, purpose: 'password_reset' },
+        process.env.EMAIL_SECRET,
+        { expiresIn: '15m' }
+    );
+
+    const emailSent = await sendPasswordResetEmail(user.email, resetToken);
+    if (!emailSent) {
+        throw new ApiError(500, "Failed to send password reset email. Please try again.");
+    }
+
+    return res.status(200).json(
+        new ApiResponse(200, {}, "If an account with that email exists, a reset link has been sent.")
+    );
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+    const { token, newPassword } = req.body;
+    
+    if (!token || !newPassword) {
+        throw new ApiError(400, "Token and new password are required");
+    }
+
+    try {
+        const decodedToken = jwt.verify(token, process.env.EMAIL_SECRET);
+        
+        // Ensure this token was specifically made for password resets
+        if (decodedToken.purpose !== 'password_reset') {
+            throw new ApiError(401, "Invalid token purpose");
+        }
+
+        const user = await User.findOne({ email: decodedToken.email });
+        if (!user) {
+            throw new ApiError(404, "User not found");
+        }
+
+        // Set the new password. The pre('save') hook in userSchema will hash it!
+        user.password = newPassword;
+        await user.save({ validateBeforeSave: false });
+
+        return res.status(200).json(
+            new ApiResponse(200, {}, "Password has been successfully reset. You can now log in.")
+        );
+    } catch (error) {
+        throw new ApiError(401, "Invalid or expired password reset token");
+    }
+});
+
+export {registerUser,loginUser, logoutUser,refreshAccessToken,updateUserAvatar,getCurrentUser,verifyEmail,resendVerificationEmail,updateUnverifiedEmail,forgotPassword,resetPassword};
