@@ -1,22 +1,23 @@
 import nodemailer from "nodemailer";
 
 const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    family: 4, // Force IPv4 to fix the ENETUNREACH IPv6 error on Render
+    host: process.env.SMTP_HOST || "smtp-relay.brevo.com",
+    port: parseInt(process.env.SMTP_PORT, 10) || 2525,
+    secure: false, // port 2525 and 587 use STARTTLS
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
     },
 });
 
+const senderEmail = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+
 export const sendVerificationEmail = async (email, token) => {
     try {
         const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
         
         const mailOptions = {
-            from: `"NexPrep Team" <${process.env.EMAIL_USER}>`,
+            from: `"NexPrep Team" <${senderEmail}>`,
             to: email,
             subject: "Verify your email address - NexPrep",
             html: `
@@ -48,7 +49,7 @@ export const sendPasswordResetEmail = async (email, token) => {
         const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
         
         const mailOptions = {
-            from: `"NexPrep Team" <${process.env.EMAIL_USER}>`,
+            from: `"NexPrep Team" <${senderEmail}>`,
             to: email,
             subject: "Reset your password - NexPrep",
             html: `
