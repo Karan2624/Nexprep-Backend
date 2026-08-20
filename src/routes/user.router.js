@@ -20,4 +20,4 @@ router.route("/socket-token").get(verifyJWT, (req, res) => {
     res.status(200).json({ accessToken: req.cookies?.accessToken });
 });
 
-export default router;
+export default router

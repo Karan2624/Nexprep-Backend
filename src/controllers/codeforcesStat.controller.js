@@ -4,7 +4,7 @@ import { asyncHandler } from "../../utils/asyncHandler.js";
 import { CodeforcesStat } from "../models/codeforcesStat.model.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
 import updateHeatmap from "../../utils/heatmapUpdater.js";
-
+import { User } from "../models/user.model.js";
 
 const fetchCodeforcesUserInfo = async(handle) => {
     const response = await fetch(`https://codeforces.com/api/user.info?handles=${handle}`);
@@ -50,7 +50,10 @@ const fetchCodeforcesMetrics = async(handle) => {
     const solvedByProblemRating = {};
     const topicBreakdown = {};
 
+    let totalSubmissions = 0;
+
     if(data.status==="OK"){
+        totalSubmissions = data.result.length;
         data.result.forEach(submission => {
         if(submission.verdict==="OK"){
             const problemId = `${submission.problem?.contestId}-${submission.problem?.index}`;
@@ -75,7 +78,8 @@ const fetchCodeforcesMetrics = async(handle) => {
     return {
         totalQuestionSolved : solvedProblems.size,
         topicBreakdown,
-        solvedByProblemRating
+        solvedByProblemRating,
+        totalSubmissions
     };
 
 }
@@ -107,12 +111,16 @@ const linkCodeforcesHandle = asyncHandler(async(req,res) => {
             rank : userInfo.rank || "unrated",
             maxRank : userInfo.maxRank || "unrated",
             totalQuestionSolved : metrics.totalQuestionSolved,
+            totalSubmissions : metrics.totalSubmissions,
             solvedByProblemRating : metrics.solvedByProblemRating,
             topicBreakdown : metrics.topicBreakdown,
             contestHistory
 
         })
-         return res
+        await User.findByIdAndUpdate(req.user._id, {
+            codeforcesProfileId: newStat._id,
+        });
+        return res
         .status(201)
         .json(
             new ApiResponse(200,newStat,"Codeforces id successfully linked")
@@ -143,7 +151,7 @@ const syncCodeforcesStat = asyncHandler(async(req,res) => {
     }
         
     try{
-        const oldTotalSolved = stat.totalQuestionSolved || 0;
+        const oldTotalSubmissions = stat.totalSubmissions || 0;
 
         const [userInfo,contestHistory,metrics] = await Promise.all([
             fetchCodeforcesUserInfo(stat.handle),
@@ -151,15 +159,16 @@ const syncCodeforcesStat = asyncHandler(async(req,res) => {
             fetchCodeforcesMetrics(stat.handle)
         ]);
 
-        const newTotalSolved = metrics.totalQuestionSolved || 0;
-        const newlySolvedCount = newTotalSolved - oldTotalSolved;
+        const newTotalSubmissions = metrics.totalSubmissions || oldTotalSubmissions;
+        const newSubmissionsCount = newTotalSubmissions - oldTotalSubmissions;
 
         stat.userId = req.user?._id;
         stat.rating = userInfo.rating || 0;
         stat.maxRating = userInfo.maxRating || 0;
         stat.rank = userInfo.rank || "unrated";
         stat.maxRank = userInfo.maxRank || "unrated";
-        stat.totalQuestionSolved = newTotalSolved;
+        stat.totalQuestionSolved = metrics.totalQuestionSolved;
+        stat.totalSubmissions = newTotalSubmissions;
         stat.solvedByProblemRating = metrics.solvedByProblemRating;
         stat.topicBreakdown = metrics.topicBreakdown;
         stat.contestHistory = contestHistory;
@@ -167,8 +176,8 @@ const syncCodeforcesStat = asyncHandler(async(req,res) => {
         
         await stat.save();
 
-        if (newlySolvedCount > 0) {
-            await updateHeatmap(req.user._id, "codeforces", newlySolvedCount);
+        if (newSubmissionsCount > 0) {
+            await updateHeatmap(req.user._id, "codeforces", newSubmissionsCount);
         }
 
     } catch(err){

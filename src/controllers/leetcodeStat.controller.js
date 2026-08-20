@@ -3,11 +3,17 @@ import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
 import { LeetcodeStat } from "../models/leetcodeStat.model.js";
 import updateHeatmap from "../../utils/heatmapUpdater.js";
+import { User } from "../models/user.model.js";
 
 const fetchLeetcodeProfile = async (username) => {
     const response = await fetch(
         `https://alfa-leetcode-api.onrender.com/${username}`
     );
+
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+        throw new ApiError(502, "Leetcode API is currently rate-limiting. Please try again in a minute.");
+    }
 
     const data = await response.json();
 
@@ -113,11 +119,18 @@ const linkLeetcodeHandle = asyncHandler(async (req, res) => {
         console.log("SKILL DATA:");
         console.log(JSON.stringify(skill, null, 2));
 
+        let totalSubmissions = 0;
+        if (profile && profile.totalSubmissions) {
+            const allStats = profile.totalSubmissions.find(s => s.difficulty === "All");
+            if (allStats) totalSubmissions = allStats.submissions;
+        }
+
         const newStat = await LeetcodeStat.create({
             userId: req.user?._id,
             username,
 
             totalSolved: solved.solvedProblem || 0,
+            totalSubmissions: totalSubmissions,
             easySolved: solved.easySolved || 0,
             mediumSolved: solved.mediumSolved || 0,
             hardSolved: solved.hardSolved || 0,
@@ -132,6 +145,10 @@ const linkLeetcodeHandle = asyncHandler(async (req, res) => {
             topicBreakdown,
             contestParticipation,
         });
+        await User.findByIdAndUpdate(req.user._id, {
+            leetcodeProfileId: newStat._id,
+        });
+        
         return res.status(201).json(
             new ApiResponse(
                 200,
@@ -167,7 +184,7 @@ const syncLeetcodeStat = asyncHandler(async (req, res) => {
 
     try {
 
-        const oldTotalSolved = stat.totalSolved || 0;
+        const oldTotalSubmissions = stat.totalSubmissions || 0;
 
         const [profile, solved, contest, skill] = await Promise.all([
             fetchLeetcodeProfile(stat.username),
@@ -192,9 +209,15 @@ const syncLeetcodeStat = asyncHandler(async (req, res) => {
             })
         );
 
-        const newTotalSolved = solved.solvedProblem || 0;
-        const newlySolvedCount = newTotalSolved - oldTotalSolved;
-        stat.totalSolved = newTotalSolved;
+        let newTotalSubmissions = oldTotalSubmissions;
+        if (profile && profile.totalSubmissions) {
+            const allStats = profile.totalSubmissions.find(s => s.difficulty === "All");
+            if (allStats) newTotalSubmissions = allStats.submissions;
+        }
+
+        const newSubmissionsCount = newTotalSubmissions - oldTotalSubmissions;
+        stat.totalSolved = solved.solvedProblem || 0;
+        stat.totalSubmissions = newTotalSubmissions;
         stat.easySolved = solved.easySolved || 0;
         stat.mediumSolved = solved.mediumSolved || 0;
         stat.hardSolved = solved.hardSolved || 0;
@@ -211,8 +234,8 @@ const syncLeetcodeStat = asyncHandler(async (req, res) => {
 
         await stat.save();
 
-        if (newlySolvedCount > 0) {
-            await updateHeatmap(req.user._id, "leetcode", newlySolvedCount);
+        if (newSubmissionsCount > 0) {
+            await updateHeatmap(req.user._id, "leetcode", newSubmissionsCount);
         }
 
         return res.status(200).json(

@@ -32,6 +32,11 @@ import notificationRouter from "./routes/notification.router.js";
 import recommendationRouter from "./routes/recommendation.router.js";
 import { ApiError } from "../utils/ApiError.js";
 
+// Healthcheck route for UptimeRobot
+app.get("/", (req, res) => {
+    res.status(200).send("NexPrep Backend is awake!");
+});
+
 
 
 app.use("/api/v1/users",userRouter);
