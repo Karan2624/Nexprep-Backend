@@ -243,7 +243,7 @@ The backend exposes a structured RESTful API. Below is a high-level overview of 
 
 ## 🤖 Coding Problem Recommender API
 
-NexPrep integrates a dedicated **AI-powered Coding Problem Recommender** microservice, developed separately to provide intelligent, personalised problem suggestions to users.
+NexPrep integrates a dedicated **Coding Problem Recommender** microservice, developed separately to provide intelligent, personalised problem suggestions to users.
 
 > **Repository:** [RadhapyariDevi/Nexprep-coding-problem-recommender-API](https://github.com/RadhapyariDevi/Nexprep-coding-problem-recommender-API)
 
@@ -259,6 +259,9 @@ The frontend calls this API to power the **problem recommendation** feature on t
 User Dashboard (Next.js)
        │
        ▼
+Node.js / Express Backend
+       │  (Authenticates user via verifyJWT)
+       ▼
  Recommender API  ──►  Returns ranked list of problems
        │
        ▼
@@ -270,14 +273,16 @@ User Dashboard (Next.js)
 | Category | Technology |
 | :--- | :--- |
 | **Language** | Python |
-| **Framework** | FastAPI / Flask |
-| **Algorithm** | Content-based & Collaborative Filtering |
+| **Framework** | FastAPI |
+| **Algorithm** | Content-based Filtering |
 | **Data** | LeetCode problem metadata & user history |
 
 ### 🔌 API Endpoint
 
 ```http
-GET /recommend?userId=<user_id>&limit=<n>
+GET /api/v1/recommend/{username}
+GET /api/cf/recommend/{cf_handle}
+GET /api/v1/weakspots/{username}
 ```
 
 | Parameter | Type | Description |
@@ -287,16 +292,16 @@ GET /recommend?userId=<user_id>&limit=<n>
 
 **Sample Response:**
 ```json
-[
-  {
-    "problem_id": "two-sum",
-    "title": "Two Sum",
-    "difficulty": "Easy",
-    "topic_tags": ["Array", "Hash Table"],
-    "company_tags": ["Amazon", "Google"],
-    "score": 0.94
-  }
-]
+{
+  "username": "coder123",
+  "topics": [
+    { "topic": "dynamic-programming", "mastery": 0.18, "level": "beginner" },
+    { "topic": "binary-search", "mastery": 0.54, "level": "intermediate" },
+    { "topic": "two-pointers", "mastery": 0.82, "level": "strong" }
+  ],
+  "strongest": [ { "topic": "two-pointers", "mastery": 0.82 } ],
+  "weakest": [ { "topic": "dynamic-programming", "mastery": 0.18 } ]
+}
 ```
 
 ### 🚀 Running the Recommender API Locally
@@ -316,7 +321,7 @@ python app.py
 Once running, point the frontend environment variable to its local URL:
 
 ```env
-# Frontend .env
+# Backend .env
 NEXT_PUBLIC_RECOMMENDER_API_URL=http://localhost:5000
 ```
 
